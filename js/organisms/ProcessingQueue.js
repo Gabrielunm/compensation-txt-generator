@@ -11,6 +11,13 @@
  *
  * Pipeline (per file):
  *   1. Barcode extraction (pdf.js for PDF, raw text for TXT).
+ *   2. Check digit validation (Formato 50).
+ *   3. Barcode parsing + date validation.
+ *   4. Record building with per-record payment date.
+ *
+ * When a specific vencimiento is selected ('1' or '2'), each record uses its
+ * own due date (fecha1 or fecha2) as the F31 payment date, and its
+ * corresponding importe. In 'auto' mode the batch payment date is used.
  *   2. `validateCheckDigit(barcode)` — Formato 50 check digit.
  *   3. `parseBarcode(barcode, { expectedEnte })` — field extraction + entity validation.
  *   4. `buildRecord(fields, fechaEmision)` — RAFAMR01 record.
@@ -48,6 +55,16 @@ function toComparableDate(dateStr, format) {
     aa = dateStr.substring(4, 6);
   }
   return Number(`20${aa}${mm}${dd}`);
+}
+
+/**
+ * Converts a DDMMAA date string to AAMMDD format.
+ *
+ * @param {string} ddmma - 6-character date in DDMMAA format.
+ * @returns {string} The date in AAMMDD format.
+ */
+function toAAMMDD(ddmma) {
+  return ddmma.substring(4, 6) + ddmma.substring(2, 4) + ddmma.substring(0, 2);
 }
 
 /**
@@ -115,10 +132,16 @@ function createLogEntry(fileName, status, barcode) {
 /**
  * Processes a single file through the pipeline.
  *
- * @param {File}   file          - The PDF file.
- * @param {string} fechaEmision  - Fecha Pago in AAMMDD format.
+ * When a specific vencimiento is selected ('1' or '2'), each record uses its
+ * own due date as the payment date (F31) and its own importe (F14).
+ * In 'auto' mode, the batch-wide payment date is used and the importe is
+ * resolved by comparing it against the first due date.
+ *
+ * @param {File}   file          - The PDF or TXT file.
+ * @param {string} fechaEmision  - Batch-wide Fecha Pago in AAMMDD format
+ *        (only used in 'auto' mode; overridden per record in '1'/'2' mode).
  * @param {string} expectedEnte  - Expected entity code for barcode validation.
- * @param {'1'|'2'|'auto'} [vencimiento='auto'] - Which vencimiento was selected.
+ * @param {'1'|'2'|'auto'} [vencimiento='auto'] - Which vencimiento to apply.
  * @param {Function} onProgress  - Called with status updates.
  * @returns {Promise<ParsedRecord|ProcessError>}
  */
@@ -161,33 +184,34 @@ async function processFile(file, fechaEmision, expectedEnte, vencimiento, onProg
     // Step 3: Parse barcode with entity validation.
     const fields = parseBarcode(barcode, { expectedEnte });
 
-    // Step 3b: Date validation — payment date must never exceed the relevant due date.
-    const pagoNum = toComparableDate(fechaEmision, 'aammdd');
-    const vto1Num = toComparableDate(fields.fecha1, 'ddmmaa');
-    const vto2Num = toComparableDate(fields.fecha2, 'ddmmaa');
+    // Step 3b: Resolve effective payment date and vencimiento mode per record.
+    let effectiveFecha = fechaEmision; // batch default
+    const effectiveVenc = vencimiento;
 
-    if (vencimiento === '1' || (vencimiento === 'auto' && pagoNum <= vto1Num)) {
-      // Paying against 1st due date.
-      if (pagoNum > vto1Num) {
-        return {
-          fileName,
-          error: `La fecha de pago (${fechaEmision}) supera el 1er vencimiento (${fields.fecha1}).`,
-          step: 'validation',
-        };
-      }
+    if (vencimiento === '1') {
+      // Use each record's own 1st due date as payment date.
+      effectiveFecha = toAAMMDD(fields.fecha1);
+    } else if (vencimiento === '2') {
+      // Use each record's own 2nd due date as payment date.
+      effectiveFecha = toAAMMDD(fields.fecha2);
     } else {
-      // Paying against 2nd due date (vencimiento='2' or auto with overdue payment).
-      if (pagoNum > vto2Num) {
+      // 'auto': validate payment date doesn't exceed the relevant due date.
+      const pagoNum = toComparableDate(fechaEmision, 'aammdd');
+      const vto1Num = toComparableDate(fields.fecha1, 'ddmmaa');
+      const vto2Num = toComparableDate(fields.fecha2, 'ddmmaa');
+
+      if (pagoNum > vto1Num && pagoNum > vto2Num) {
         return {
           fileName,
-          error: `La fecha de pago (${fechaEmision}) supera el 2do vencimiento (${fields.fecha2}).`,
+          error: `La fecha de pago (${fechaEmision}) supera ambos vencimientos ` +
+                 `(${fields.fecha1}, ${fields.fecha2}).`,
           step: 'validation',
         };
       }
     }
 
-    // Step 4: Build record (pass original barcode to avoid field reconstruction errors).
-    const record = buildRecord(fields, fechaEmision, barcode, vencimiento);
+    // Step 4: Build record with per-record payment date and vencimiento mode.
+    const record = buildRecord(fields, effectiveFecha, barcode, effectiveVenc);
 
     onProgress(fileName, 'done', barcode);
 
