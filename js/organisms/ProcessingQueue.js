@@ -16,7 +16,7 @@
  *   4. Record building with per-record payment date.
  *
  * When a specific vencimiento is selected ('1' or '2'), each record uses its
- * own due date (fecha1 or fecha2) as the F31 payment date, and its
+ * own due date (fecha1 or fecha2) as the payment date (Fecha Pago), and its
  * corresponding importe. In 'auto' mode the batch payment date is used.
  *   2. `validateCheckDigit(barcode)` — Formato 50 check digit.
  *   3. `parseBarcode(barcode, { expectedEnte })` — field extraction + entity validation.
@@ -133,7 +133,7 @@ function createLogEntry(fileName, status, barcode) {
  * Processes a single file through the pipeline.
  *
  * When a specific vencimiento is selected ('1' or '2'), each record uses its
- * own due date as the payment date (F31) and its own importe (F14).
+ * own due date as the payment date (Fecha Pago) and its own importe (Importe Cobrado).
  * In 'auto' mode, the batch-wide payment date is used and the importe is
  * resolved by comparing it against the first due date.
  *

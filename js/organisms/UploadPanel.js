@@ -116,7 +116,7 @@ export function UploadPanel({ onProcess }) {
 
   const dateHint = document.createElement('small');
   dateHint.className = 'date-hint';
-  dateHint.textContent = 'La fecha se usa solo para el registro RAFAM (F31).';
+  dateHint.textContent = 'La fecha se usa solo para el registro RAFAM (campo Fecha Pago).';
   dateHint.hidden = true;
   container.append(dateHint);
 

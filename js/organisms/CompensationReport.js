@@ -73,7 +73,7 @@ function generateExcelBytes(records, errors, fechaEmision) {
     ['#', 'Comprobante', 'Tipo', 'Importe 1', 'Importe 2', 'Importe cobrado', 'Vto. 1', 'Vto. 2', 'Fecha pago', 'Código de Barra', 'Archivo'],
   ];
   records.forEach((r, i) => {
-    // Parse actual importe from F14 in the record (positions 77-88, 11 chars, cents).
+    // Parse actual importe from the Importe Cobrado field in the record (positions 77-88, 11 chars, cents).
     const importePagado = Number.parseInt(r.record.substring(77, 88), 10) / 100;
     detailRows.push([
       i + 1,

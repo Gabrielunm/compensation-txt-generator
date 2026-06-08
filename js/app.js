@@ -135,7 +135,7 @@ function initUploadTour() {
         element: '.comp-date-field',
         popover: {
           title: 'Fecha de Pago',
-          description: 'Seleccioná la fecha de pago para este lote. Por defecto es hoy. La fecha se escribe en el campo RAFAM F31 (Fecha Pago).',
+          description: 'Seleccioná la fecha de pago para este lote. Por defecto es hoy. La fecha se escribe en el campo Fecha Pago del registro RAFAM.',
           side: 'bottom',
         },
       },
