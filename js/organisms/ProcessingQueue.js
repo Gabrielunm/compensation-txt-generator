@@ -30,6 +30,27 @@ import { buildRecord } from '../services/rafam-builder.js';
 import { CONFIG } from '../config.js';
 
 /**
+ * Converts a DDMMAA or AAMMDD date string to YYYYMMDD for comparison.
+ *
+ * @param {string} dateStr - 6-character date string.
+ * @param {'ddmmaa'|'aammdd'} format - Input format.
+ * @returns {number} Date as YYYYMMDD integer (assumes 2000+ century).
+ */
+function toComparableDate(dateStr, format) {
+  let aa, mm, dd;
+  if (format === 'aammdd') {
+    aa = dateStr.substring(0, 2);
+    mm = dateStr.substring(2, 4);
+    dd = dateStr.substring(4, 6);
+  } else {
+    dd = dateStr.substring(0, 2);
+    mm = dateStr.substring(2, 4);
+    aa = dateStr.substring(4, 6);
+  }
+  return Number(`20${aa}${mm}${dd}`);
+}
+
+/**
  * @typedef {Object} ProcessError
  * @property {string} fileName - The file that caused the error.
  * @property {string} error    - Human-readable error description.
@@ -97,6 +118,7 @@ function createLogEntry(fileName, status, barcode) {
  * @param {File}   file          - The PDF file.
  * @param {string} fechaEmision  - Fecha Pago in AAMMDD format.
  * @param {string} expectedEnte  - Expected entity code for barcode validation.
+ * @param {'1'|'2'|'auto'} [vencimiento='auto'] - Which vencimiento was selected.
  * @param {Function} onProgress  - Called with status updates.
  * @returns {Promise<ParsedRecord|ProcessError>}
  */
@@ -138,6 +160,21 @@ async function processFile(file, fechaEmision, expectedEnte, vencimiento, onProg
 
     // Step 3: Parse barcode with entity validation.
     const fields = parseBarcode(barcode, { expectedEnte });
+
+    // Step 3b: Date validation — payment date must make sense for the selected vencimiento.
+    if (vencimiento === '1') {
+      // Convert both to comparable YYYYMMDD
+      const pago = toComparableDate(fechaEmision, 'aammdd');
+      const vto1 = toComparableDate(fields.fecha1, 'ddmmaa');
+      if (pago > vto1) {
+        return {
+          fileName,
+          error: `Fecha de pago (${fechaEmision}) es posterior al 1er vencimiento (${fields.fecha1}). ` +
+                 `Usá "2do vencimiento" o modo automático.`,
+          step: 'validation',
+        };
+      }
+    }
 
     // Step 4: Build record (pass original barcode to avoid field reconstruction errors).
     const record = buildRecord(fields, fechaEmision, barcode, vencimiento);
