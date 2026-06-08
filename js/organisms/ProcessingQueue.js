@@ -51,6 +51,16 @@ function toComparableDate(dateStr, format) {
 }
 
 /**
+ * Converts a DDMMAA date string to AAMMDD format.
+ *
+ * @param {string} ddmma - 6-character date in DDMMAA format.
+ * @returns {string} The date in AAMMDD format.
+ */
+function toAAMMDD(ddmma) {
+  return ddmma.substring(4, 6) + ddmma.substring(2, 4) + ddmma.substring(0, 2);
+}
+
+/**
  * @typedef {Object} ProcessError
  * @property {string} fileName - The file that caused the error.
  * @property {string} error    - Human-readable error description.
@@ -161,23 +171,20 @@ async function processFile(file, fechaEmision, expectedEnte, vencimiento, onProg
     // Step 3: Parse barcode with entity validation.
     const fields = parseBarcode(barcode, { expectedEnte });
 
-    // Step 3b: Date validation — payment date must make sense for the selected vencimiento.
+    // Step 3b: Date correction — if "1er vencimiento" is forced and the payment
+    // date falls after the first due date, snap the payment date to the due date.
+    let effectiveFecha = fechaEmision;
     if (vencimiento === '1') {
-      // Convert both to comparable YYYYMMDD
       const pago = toComparableDate(fechaEmision, 'aammdd');
       const vto1 = toComparableDate(fields.fecha1, 'ddmmaa');
       if (pago > vto1) {
-        return {
-          fileName,
-          error: `Fecha de pago (${fechaEmision}) es posterior al 1er vencimiento (${fields.fecha1}). ` +
-                 `Usá "2do vencimiento" o modo automático.`,
-          step: 'validation',
-        };
+        // Auto-correct: use the first due date as the payment date.
+        effectiveFecha = toAAMMDD(fields.fecha1);
       }
     }
 
     // Step 4: Build record (pass original barcode to avoid field reconstruction errors).
-    const record = buildRecord(fields, fechaEmision, barcode, vencimiento);
+    const record = buildRecord(fields, effectiveFecha, barcode, vencimiento);
 
     onProgress(fileName, 'done', barcode);
 
