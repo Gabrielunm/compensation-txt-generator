@@ -154,7 +154,7 @@ export function ResultsTable({ records }) {
         case 'inmueble': return extractInmueble(rec.fileName);
         case 'comprobante': return rec.fields.nroComprobante;
         case 'tipo': return rec.fields.tipoComprobante;
-        case 'importe': return rec.fields.importe1;
+        case 'importe': return rec.resolvedImporte;
         case 'barcode': return rec.barcode;
         case 'status': return 'valid';
         default: return '';
@@ -220,7 +220,7 @@ export function ResultsTable({ records }) {
       // Importe
       const td4 = document.createElement('td');
       td4.className = 'comp-results-table__importe';
-      td4.textContent = formatImporte(rec.fields.importe1);
+      td4.textContent = formatImporte(rec.resolvedImporte);
       row.append(td4);
 
       // Barcode (truncated)

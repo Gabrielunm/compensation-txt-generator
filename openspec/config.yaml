@@ -1,0 +1,36 @@
+# SDD Configuration — compensation-app
+# Generated: 2026-06-08 by sdd-init (hybrid mode)
+
+context: >
+  Batch-processing web app (vanilla JS, no framework) that generates RAFAMR01
+  compensation TXT files from PDF invoices. Atomic Design structure (atoms,
+  molecules, organisms). Entity: Hurlingham (code 0135). Pico CSS v2, Lucide
+  icons, pdf.js v3, Zod v3, JSZip v3, SheetJS. Client-side only — no backend.
+
+strict_tdd: true
+
+testing:
+  runner:
+    command: node --experimental-vm-modules node_modules/jest/bin/jest.js
+    framework: jest
+    version: "^29.0.0"
+  layers:
+    unit: { available: true, tool: jest }
+    integration: { available: false, tool: null }
+    e2e: { available: false, tool: null }
+  coverage:
+    available: false
+    command: null
+  quality:
+    linter: { available: true, command: eslint js/ }
+    type_checker: { available: false, command: null }
+    formatter: { available: false, command: null }
+
+phases:
+  proposal: true
+  spec: true
+  design: true
+  tasks: true
+  apply: true
+  verify: true
+  archive: true

@@ -313,7 +313,7 @@ function renderProcessingQueue() {
  */
 function renderResults() {
   // --- Summary card ---
-  const totalCents = state.records.reduce((s, r) => s + r.fields.importe1, 0);
+  const totalCents = state.records.reduce((s, r) => s + r.resolvedImporte, 0);
   const summaryCard = document.createElement('div');
   summaryCard.className = 'results-summary';
   summaryCard.innerHTML = `

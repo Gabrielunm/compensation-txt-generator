@@ -84,13 +84,31 @@ function generateExcelBytes(records, errors, fechaEmision) {
       importePagado,
       r.fields.fecha1,
       r.fields.fecha2,
-      fechaEmision,
+      r.effectiveFecha,
       r.barcode,
       r.fileName,
     ]);
   });
 
   const detalle = XLSX.utils.aoa_to_sheet(detailRows);
+
+  // Format "Fecha pago" column (col I, index 8) as proper date type.
+  for (let i = 0; i < records.length; i++) {
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 8 });
+    const cell = detalle[cellRef];
+    if (cell && records[i].effectiveFecha) {
+      const ef = records[i].effectiveFecha;
+      const year = 2000 + Number.parseInt(ef.substring(0, 2), 10);
+      const month = Number.parseInt(ef.substring(2, 4), 10) - 1;
+      const day = Number.parseInt(ef.substring(4, 6), 10);
+      cell.t = 'n';
+      cell.z = 'dd/mm/yyyy';
+      // Excel serial date: days since Dec 30, 1899 (UTC).
+      const excelEpoch = Date.UTC(1899, 11, 30);
+      const cellDate = Date.UTC(year, month, day);
+      cell.v = (cellDate - excelEpoch) / (24 * 60 * 60 * 1000);
+    }
+  }
 
   // Column widths
   detalle['!cols'] = [
@@ -110,7 +128,7 @@ function generateExcelBytes(records, errors, fechaEmision) {
   XLSX.utils.book_append_sheet(wb, detalle, 'Detalle');
 
   // --- Hoja 2: Resumen ---
-  const totalCents = records.reduce((sum, r) => sum + r.fields.importe1, 0);
+  const totalCents = records.reduce((sum, r) => sum + r.resolvedImporte, 0);
   const summaryRows = [
     ['Concepto', 'Valor'],
     ['Fecha', fechaEmision],
@@ -182,7 +200,7 @@ export function CompensationReport({
   // Compute totals.
   const totalRecords = records.length;
   const totalErrors = errors.length;
-  const totalCents = records.reduce((sum, r) => sum + r.fields.importe1, 0);
+  const totalCents = records.reduce((sum, r) => sum + r.resolvedImporte, 0);
   const safeDateStr = safeDate(fechaEmision);
 
   // ================================================================
@@ -252,7 +270,7 @@ export function CompensationReport({
 
       const td3 = document.createElement('td');
       td3.className = 'comp-report__importe';
-      td3.textContent = formatImporte(rec.fields.importe1);
+      td3.textContent = formatImporte(rec.resolvedImporte);
       tr.append(td3);
 
       // Hidden full record in data attribute for download.

@@ -79,12 +79,18 @@ function toAAMMDD(ddmma) {
 
 /**
  * @typedef {Object} ParsedRecord
- * @property {string}          fileName      - Source PDF file name.
- * @property {string}          barcode       - Extracted 50-digit barcode.
+ * @property {string}          fileName        - Source PDF file name.
+ * @property {string}          barcode         - Extracted 50-digit barcode.
  * @property {import('../services/barcode-parser.js').BarcodeFields} fields
  *   Parsed barcode fields.
- * @property {string}          record        - 279-char RAFAMR01 record.
- * @property {number}          recordLength  - Length of the record (always 279).
+ * @property {string}          record          - 279-char RAFAMR01 record.
+ * @property {number}          recordLength    - Length of the record (always 279).
+ * @property {number}          resolvedImporte - Resolved importe in integer cents
+ *   (matches TXT F14 at record positions 77-88). Reflects the vencimiento mode:
+ *   importe1 for '1', importe2 for '2', or auto-resolved for 'auto'.
+ * @property {string}          effectiveFecha  - Per-record effective payment date
+ *   in AAMMDD format. In '1' mode equals toAAMMDD(fields.fecha1), in '2' equals
+ *   toAAMMDD(fields.fecha2), in 'auto' equals batch fechaEmision.
  */
 
 /**
@@ -243,12 +249,17 @@ async function processFile(file, fechaEmision, expectedEnte, vencimiento, onProg
       // Step 4: Build record with per-record payment date and vencimiento mode.
       const record = buildRecord(fields, effectiveFecha, barcode, effectiveVenc);
 
+      // Extract resolved importe from TXT F14 so display matches file output.
+      const resolvedImporte = Number.parseInt(record.substring(77, 88), 10);
+
       valid.push({
         fileName,
         barcode,
         fields,
         record,
         recordLength: record.length,
+        resolvedImporte,
+        effectiveFecha,
       });
     } catch (/** @type {*} */ err) {
       errors.push({
