@@ -293,15 +293,59 @@ function renderProcessingQueue() {
 }
 
 /**
- * Renders the results table, compensation report, and clear button.
+ * Renders the results view — summary card + collapsible table + report.
  *
- * Used for both {@code ready} and {@code error} states. Includes a
- * Botón "Limpiar y Empezar de Nuevo" que reinicia la aplicación al estado inicial.
+ * For large batches, the individual record table starts collapsed to avoid
+ * saturating the UI. A summary card shows total count, total amount, and
+ * errors at a glance.
  */
 function renderResults() {
-  // --- Results table ---
+  // --- Summary card ---
+  const totalCents = state.records.reduce((s, r) => s + r.fields.importe1, 0);
+  const summaryCard = document.createElement('div');
+  summaryCard.className = 'results-summary';
+  summaryCard.innerHTML = `
+    <div class="results-summary__stat">
+      <span class="results-summary__value">${state.records.length}</span>
+      <span class="results-summary__label">comprobantes</span>
+    </div>
+    <div class="results-summary__stat">
+      <span class="results-summary__value">${(totalCents / 100).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+      <span class="results-summary__label">total importe</span>
+    </div>
+    <div class="results-summary__stat ${state.errors.length > 0 ? 'results-summary__stat--error' : ''}">
+      <span class="results-summary__value">${state.errors.length}</span>
+      <span class="results-summary__label">errores</span>
+    </div>
+  `;
+  appRoot.append(summaryCard);
+
+  // --- Results table (collapsible if > 20 records) ---
+  const showCollapsed = state.records.length > 20;
+  const tableSection = document.createElement('div');
+  tableSection.className = 'results-table-section';
+
+  if (showCollapsed) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'results-table-toggle';
+    toggleBtn.textContent = `Mostrar detalle (${state.records.length} registros)`;
+    toggleBtn.addEventListener('click', () => {
+      const hidden = tableBody.hidden;
+      tableBody.hidden = !hidden;
+      toggleBtn.textContent = hidden
+        ? `Ocultar detalle (${state.records.length} registros)`
+        : `Mostrar detalle (${state.records.length} registros)`;
+    });
+    tableSection.append(toggleBtn);
+  }
+
+  const tableBody = document.createElement('div');
+  tableBody.hidden = showCollapsed;
+
   const table = ResultsTable({ records: state.records });
-  appRoot.append(table);
+  tableBody.append(table);
+  tableSection.append(tableBody);
+  appRoot.append(tableSection);
 
   // --- Compensation report ---
   const report = CompensationReport({
@@ -310,10 +354,8 @@ function renderResults() {
     files: state.files,
     fechaEmision: state.fechaEmision,
     onCancel: resetToIdle,
-    // Solo permitir "Continuar sin errores" cuando hay registros válidos para conservar.
     ...(state.records.length > 0 ? {
       onContinue: () => {
-        /* Continue without errors — valid records collection is already clean. */
         state.status = 'ready';
         render();
       },
@@ -323,15 +365,14 @@ function renderResults() {
 
   // --- Clear & Start Over button ---
   const clearBtn = Button({
-    label: 'Clear & Start Over',
+    label: 'Limpiar y empezar de nuevo',
     variant: 'outline',
     icon: 'refresh-cw',
     onClick: resetToIdle,
   });
   appRoot.append(clearBtn);
 
-  // Render Lucide icons for all newly mounted elements.
-  /* global lucide */
+  // Render Lucide icons.
   if (typeof lucide !== 'undefined') {
     try { lucide.createIcons(); } catch (e) { console.warn('Lucide icons failed to render:', e); }
   }

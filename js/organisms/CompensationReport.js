@@ -51,61 +51,80 @@ function safeDate(isoDate) {
 }
 
 /**
- * Generates the report HTML as a string.
+ * Generates an Excel workbook with the compensation report as a downloadable
+ * ArrayBuffer. Returns null if SheetJS (XLSX) is not available.
  *
  * @param {Array<import('./ProcessingQueue.js').ParsedRecord>} records
  * @param {Array<import('./ProcessingQueue.js').ProcessError>} errors
- * @param {string} fechaEmision
- * @param {number} totalCents
- * @returns {string} HTML report content.
+ * @param {string} fechaEmision ISO date (YYYY-MM-DD)
+ * @returns {Uint8Array|null} XLSX bytes, or null if XLSX is unavailable.
  */
-function generateReportHTML(records, errors, fechaEmision, totalCents) {
-  const rows = records.map((r, i) =>
-    `<tr>
-      <td>${i + 1}</td>
-      <td>${r.fields.nroComprobante}</td>
-      <td>${r.fields.tipoComprobante}</td>
-      <td>${formatImporte(r.fields.importe1)}</td>
-      <td>${r.fields.fecha1}</td>
-      <td><code>${r.barcode}</code></td>
-    </tr>`
-  ).join('\n');
+function generateExcelBytes(records, errors, fechaEmision) {
+  /* global XLSX */
+  if (typeof XLSX === 'undefined') {
+    console.warn('SheetJS not loaded — skipping Excel report.');
+    return null;
+  }
 
-  const errRows = errors.map(e =>
-    `<li><strong>${e.fileName}</strong> — ${e.step}: ${e.error}</li>`
-  ).join('\n');
+  const wb = XLSX.utils.book_new();
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><title>Informe de Compensación</title>
-<style>
-  body{font-family:'DM Sans',sans-serif;margin:2rem;color:#333}
-  h1{color:#00ad9c;border-bottom:2px solid #00ad9c;padding-bottom:.5rem}
-  .summary{display:flex;gap:2rem;margin:1rem 0;flex-wrap:wrap}
-  .summary span{background:#f5f7fa;padding:.5rem 1rem;border-radius:6px}
-  table{width:100%;border-collapse:collapse;margin-top:1rem}
-  th,td{text-align:left;padding:.5rem;border-bottom:1px solid #e9ecef}
-  th{background:#f5f7fa;font-weight:600}
-  code{font-size:.75rem;word-break:break-all}
-  .errors{margin-top:1.5rem}
-  .errors h2{color:#d63939}
-</style></head>
-<body>
-  <h1>Informe de Compensación</h1>
-  <div class="summary">
-    <span>📅 Fecha: ${formatDate(fechaEmision)}</span>
-    <span>📄 Comprobantes: ${records.length}</span>
-    <span>💰 Total: ${formatImporte(totalCents)}</span>
-    <span>⚠️ Errores: ${errors.length}</span>
-  </div>
-  <table>
-    <thead><tr><th>#</th><th>Comprobante</th><th>Tipo</th><th>Importe</th><th>Vencimiento</th><th>Código de Barra</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  ${errors.length > 0 ? `<div class="errors"><h2>Errores</h2><ol>${errRows}</ol></div>` : ''}
-  <p style="margin-top:2rem;color:#999;font-size:.8rem;">Generado el ${new Date().toLocaleString('es-AR')}</p>
-</body>
-</html>`;
+  // --- Hoja 1: Detalle ---
+  const detailRows = [
+    ['#', 'Comprobante', 'Tipo', 'Importe', 'Vto. 1', 'Vto. 2', 'Código de Barra', 'Archivo'],
+  ];
+  records.forEach((r, i) => {
+    detailRows.push([
+      i + 1,
+      r.fields.nroComprobante,
+      r.fields.tipoComprobante,
+      r.fields.importe1 / 100,
+      r.fields.fecha1,
+      r.fields.fecha2,
+      r.barcode,
+      r.fileName,
+    ]);
+  });
+
+  const detalle = XLSX.utils.aoa_to_sheet(detailRows);
+
+  // Column widths
+  detalle['!cols'] = [
+    { wch: 5 },   // #
+    { wch: 14 },  // Comprobante
+    { wch: 6 },   // Tipo
+    { wch: 14 },  // Importe
+    { wch: 10 },  // Vto. 1
+    { wch: 10 },  // Vto. 2
+    { wch: 54 },  // Código de Barra
+    { wch: 24 },  // Archivo
+  ];
+
+  XLSX.utils.book_append_sheet(wb, detalle, 'Detalle');
+
+  // --- Hoja 2: Resumen ---
+  const totalCents = records.reduce((sum, r) => sum + r.fields.importe1, 0);
+  const summaryRows = [
+    ['Concepto', 'Valor'],
+    ['Fecha', fechaEmision],
+    ['Total comprobantes', records.length],
+    ['Total importe', totalCents / 100],
+    ['Errores', errors.length],
+  ];
+
+  if (errors.length > 0) {
+    summaryRows.push([]);
+    summaryRows.push(['Archivo', 'Error']);
+    errors.forEach((e) => {
+      summaryRows.push([e.fileName, `[${e.step}] ${e.error}`]);
+    });
+  }
+
+  const resumen = XLSX.utils.aoa_to_sheet(summaryRows);
+  resumen['!cols'] = [{ wch: 24 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, resumen, 'Resumen');
+
+  // Generate binary output
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 }
 
 /**
@@ -300,9 +319,11 @@ export function CompensationReport({
     const txtContent = records.map((r) => r.record).join('\r\n');
     zip.file(`RAFAMR01_${safeDateStr}.txt`, txtContent);
 
-    // 2. Add HTML report.
-    const reportHTML = generateReportHTML(records, errors, fechaEmision, totalCents);
-    zip.file(`Informe_${safeDateStr}.html`, reportHTML);
+    // 2. Add Excel report.
+    const xlsxBytes = generateExcelBytes(records, errors, fechaEmision);
+    if (xlsxBytes) {
+      zip.file(`Informe_${safeDateStr}.xlsx`, xlsxBytes);
+    }
 
     // 3. Add all source PDFs.
     const pdfFolder = zip.folder(`facturas_${safeDateStr}`);

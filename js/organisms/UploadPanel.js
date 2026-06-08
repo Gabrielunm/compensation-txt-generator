@@ -100,7 +100,11 @@ export function UploadPanel({ onProcess }) {
   });
 
   /**
-   * Renders the file list with remove buttons for each file.
+   * Renders the file list — summary bar + expandable detail list.
+   *
+   * When there are many files (>20), individual entries are hidden behind
+   * a "Show details" toggle to keep the UI clean. The summary bar always
+   * shows total count and size at a glance.
    */
   function renderFileList() {
     fileListContainer.textContent = '';
@@ -108,6 +112,36 @@ export function UploadPanel({ onProcess }) {
     if (files.length === 0) {
       return;
     }
+
+    const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+
+    // --- Summary bar ---
+    const summary = document.createElement('div');
+    summary.className = 'file-summary';
+
+    const summaryText = document.createElement('span');
+    summaryText.className = 'file-summary__text';
+    summaryText.textContent =
+      `${files.length} archivo${files.length !== 1 ? 's' : ''} · ${formatSize(totalBytes)}`;
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'file-summary__clear';
+    clearBtn.textContent = 'Limpiar todo';
+    clearBtn.addEventListener('click', () => {
+      files = [];
+      fechaEmision = null;
+      renderFileList();
+      updateButtonState();
+    });
+
+    summary.append(summaryText, clearBtn);
+    fileListContainer.append(summary);
+
+    // --- Individual file list (expandable) ---
+    const showIndividual = files.length <= 20;
+    const listWrapper = document.createElement('div');
+    listWrapper.className = 'file-list-detail';
+    listWrapper.hidden = !showIndividual;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -137,7 +171,22 @@ export function UploadPanel({ onProcess }) {
       });
 
       item.append(nameSpan, sizeSpan, removeBtn);
-      fileListContainer.append(item);
+      listWrapper.append(item);
+    }
+
+    fileListContainer.append(listWrapper);
+
+    // --- Toggle button for large batches ---
+    if (files.length > 20) {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'file-summary__toggle';
+      toggleBtn.textContent = 'Ver detalles';
+      toggleBtn.addEventListener('click', () => {
+        const hidden = listWrapper.hidden;
+        listWrapper.hidden = !hidden;
+        toggleBtn.textContent = hidden ? 'Ocultar detalles' : 'Ver detalles';
+      });
+      fileListContainer.append(toggleBtn);
     }
 
     // Trigger Lucide icon replacement for remove buttons.

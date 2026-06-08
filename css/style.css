@@ -26,12 +26,38 @@
   --pico-primary: var(--brand-primary);
   --pico-primary-hover: var(--brand-primary-hover);
   --pico-font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --pico-font-size: 14px;
   --pico-border-radius: 8px;
   --pico-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --pico-form-element-spacing-vertical: 0.5rem;
+  --pico-form-element-spacing-horizontal: 0.75rem;
 }
 
-/* Subtle background texture */
-body::before {
+/* Reduce overall sizing */
+body {
+  font-size: 14px;
+}
+
+/* Sticky footer: push footer to bottom even on short content */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+main.container {
+  flex: 1;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
   content: '';
   position: fixed;
   inset: 0;
@@ -93,6 +119,65 @@ body::before {
   border-style: solid;
 }
 
+/* Results summary card — compact overview at a glance */
+.results-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.results-summary__stat {
+  flex: 1;
+  background: var(--brand-surface);
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.results-summary__stat--error {
+  border-color: #f5c2c2;
+  background: #fff5f5;
+}
+
+.results-summary__value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+  line-height: 1.2;
+}
+
+.results-summary__label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--brand-text-muted);
+  margin-top: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Collapsible table section */
+.results-table-toggle {
+  display: block;
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--brand-surface);
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--pico-primary);
+  cursor: pointer;
+  text-align: center;
+  margin-bottom: 0.75rem;
+  transition: background 0.15s;
+}
+
+.results-table-toggle:hover {
+  background: rgba(0, 173, 156, 0.04);
+}
+
 /* File list item */
 .file-item {
   display: flex;
@@ -113,6 +198,63 @@ body::before {
 
 .file-item--error {
   background-color: rgba(214, 57, 57, 0.05);
+}
+
+/* File summary bar — visible always, shows count + size + actions */
+.file-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  background: rgba(0, 173, 156, 0.04);
+  border-bottom: 1px solid #e9ecef;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.file-summary__text {
+  color: var(--brand-text);
+}
+
+.file-summary__clear {
+  background: none;
+  border: 1px solid #d63939;
+  color: #d63939;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.file-summary__clear:hover {
+  background: rgba(214, 57, 57, 0.06);
+}
+
+.file-summary__toggle {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid #e9ecef;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--pico-primary);
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.file-summary__toggle:hover {
+  background: rgba(0, 173, 156, 0.03);
+}
+
+/* Individual file list — scrollable with max-height */
+.file-list-detail {
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 /* Results table wrapper for horizontal scroll */
@@ -316,8 +458,6 @@ body::before {
    ================================================================ */
 .comp-upload-panel__file-list {
   margin-top: 0.75rem;
-  max-height: 280px;
-  overflow-y: auto;
   border: 1px solid #e9ecef;
   border-radius: 8px;
   background: var(--brand-surface);
@@ -455,12 +595,13 @@ body::before {
 }
 
 .app-header__inner {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding: 0 0.5rem;
 }
 
 .app-header__brand {
@@ -535,13 +676,14 @@ body::before {
 }
 
 .app-footer__inner {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  padding: 0 0.5rem;
 }
 
 .app-footer__info {

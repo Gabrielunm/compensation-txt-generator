@@ -22,6 +22,7 @@ export default [
         pdfjsLib: 'readonly',
         driver: 'readonly',
         JSZip: 'readonly',
+        XLSX: 'readonly',
       },
     },
     rules: {

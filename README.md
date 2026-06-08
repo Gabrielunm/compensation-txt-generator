@@ -33,11 +33,11 @@ npm run lint      # ESLint 0 errores
 ## 📦 ¿Qué hace?
 
 1. **Subí** 100–400 PDFs (arrastrar y soltar o seleccionar)
-2. **Elegí** la fecha de emisión del lote
+2. **Elegí** la fecha de pago del lote
 3. **Procesá** — extrae el código de barra de 50 dígitos de cada PDF, valida dígito verificador, parsea campos
 4. **Descargá** un ZIP con:
    - `RAFAMR01_YYYYMMDD.txt` — registros de compensación
-   - `Informe_YYYYMMDD.html` — reporte con tabla resumen
+   - `Informe_YYYYMMDD.xlsx` — reporte en Excel con Detalle y Resumen
    - `facturas_YYYYMMDD/` — PDFs originales
 
 ## 🎨 Personalización
