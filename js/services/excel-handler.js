@@ -36,15 +36,157 @@ export const TEMPLATE_COLUMNS = [
 ];
 
 /**
- * Converts an importe in pesos (e.g. 120553.57) to integer cents.
+ * Parses an importe value from an Excel cell into integer cents.
  *
- * @param {number} pesos - Amount in pesos with up to 2 decimals.
- * @returns {number} Amount in integer cents.
+ * Accepts:
+ *   - Number → IEEE 754 (viene así de Excel cuando la celda es numérica).
+ *   - String con punto decimal → "120553.57"
+ *   - String con coma decimal → "120553,57" (formato argentino).
+ *   - String con separador de miles → "120.553,57" o "120,553.57".
+ *
+ * @param {*} raw - Raw cell value from SheetJS.
+ * @returns {number|null} Amount in integer cents, or null if unparseable.
  */
-function pesosToCents(pesos) {
-  // Redondear a 2 decimales primero para manejar entradas con más decimales
-  // (ej. 120553.5789 → 120553.58) y errores de punto flotante.
-  return Math.round(pesos * 100 + Number.EPSILON);
+function parseImporte(raw) {
+  if (raw === '' || raw === undefined || raw === null) {
+    return null;
+  }
+
+  // Number → directo a cents (redondeando por floating point).
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return Math.round(raw * 100 + Number.EPSILON);
+  }
+
+  // String → limpiar y parsear respetando coma como decimal.
+  let str = String(raw).trim();
+  if (!str) { return null; }
+
+  // Detectar formato regional:
+  //   "120.553,57" → último separador es coma (decimal argentino/europeo)
+  //   "120,553.57" → último separador es punto (decimal inglés/US)
+  const lastDot = str.lastIndexOf('.');
+  const lastComma = str.lastIndexOf(',');
+
+  if (lastComma > lastDot) {
+    // Formato argentino/europeo: coma es decimal, punto es separador de miles.
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (lastDot > lastComma) {
+    // Formato inglés/US: punto es decimal, coma es separador de miles.
+    str = str.replace(/,/g, '');
+  }
+  // Si no hay separadores, str se mantiene igual.
+
+  const num = Number(str);
+  if (Number.isNaN(num) || num < 0) { return null; }
+
+  return Math.round(num * 100 + Number.EPSILON);
+}
+
+/**
+ * Converts an Excel serial date number to a Date object.
+ *
+ * Excel serial day 1 = January 1, 1900. Serial 60 = Feb 29, 1900 (Lotus bug,
+ * doesn't exist), so for serials >= 61 we subtract 1 day.
+ *
+ * @param {number} serial - Excel serial date number.
+ * @returns {Date}
+ */
+function excelSerialToDate(serial) {
+  const adjusted = serial > 60 ? serial - 1 : serial;
+  return new Date((adjusted - 1) * 86400000 + Date.UTC(1899, 11, 30));
+}
+
+/**
+ * Formats a Date as DDMMAA string.
+ *
+ * @param {Date} date
+ * @returns {string} e.g. "040626".
+ */
+function dateToDDMMAA(date) {
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const yy = String(date.getUTCFullYear()).slice(-2);
+  return dd + mm + yy;
+}
+
+/**
+ * Parses a date value from an Excel cell into DDMMAA format.
+ *
+ * Accepts:
+ *   - Date object → from SheetJS con cellDates:true
+ *   - Number → Excel serial date
+ *   - String "DDMMAA" (6 dígitos)
+ *   - String "DD/MM/AA", "DD-MM-AA", "DD/MM/AAAA", "DD-MM-AAAA"
+ *   - String "YYYY-MM-DD", "YYYY/MM/DD"
+ *
+ * @param {*} raw - Raw cell value from SheetJS.
+ * @returns {string|null} 6-digit DDMMAA string, or null if unparseable.
+ */
+function parseDate(raw) {
+  if (raw === '' || raw === undefined || raw === null) {
+    return null;
+  }
+
+  // Case 1: Date object (SheetJS con cellDates:true).
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return dateToDDMMAA(raw);
+  }
+
+  // Case 2: number → Excel serial date (raw cellDates:false).
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const d = excelSerialToDate(raw);
+    if (d.getTime() >= 0) {
+      return dateToDDMMAA(d);
+    }
+    return null;
+  }
+
+  const str = String(raw).trim();
+  if (!str) { return null; }
+
+  // Case 3: exactly 6 digits → already DDMMAA.
+  if (/^\d{6}$/.test(str)) {
+    return str;
+  }
+
+  // Case 4: try to parse as a date string with separators.
+  // DD/MM/AA, DD-MM-AA, DD/MM/AAAA, DD-MM-AAAA, YYYY-MM-DD, etc.
+  const parts = str.split(/[/.\-,\s]+/).filter(Boolean);
+  if (parts.length !== 3) { return null; }
+
+  let d, m, y;
+
+  // Detect order: if first part has 4 digits → YYYY-MM-DD
+  // Otherwise assume DD/MM/YYYY or DD/MM/YY
+  if (parts[0].length === 4) {
+    y = parts[0];
+    m = parts[1];
+    d = parts[2];
+  } else {
+    d = parts[0];
+    m = parts[1];
+    y = parts[2];
+  }
+
+  // Validate numeric.
+  if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m)) { return null; }
+  const dd = Number.parseInt(d, 10);
+  const mm = Number.parseInt(m, 10);
+  if (dd < 1 || dd > 31 || mm < 1 || mm > 12) { return null; }
+
+  let yyyy;
+  if (y.length === 4) {
+    yyyy = Number.parseInt(y, 10);
+  } else if (y.length === 2) {
+    yyyy = 2000 + Number.parseInt(y, 10);
+  } else {
+    return null;
+  }
+
+  const ddStr = String(dd).padStart(2, '0');
+  const mmStr = String(mm).padStart(2, '0');
+  const yyStr = String(yyyy).slice(-2);
+  return ddStr + mmStr + yyStr;
 }
 
 /**
@@ -150,7 +292,7 @@ export async function importFromExcel(file, expectedEnte) {
   }
 
   const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, { type: 'array', codepage: 65001 });
+  const wb = XLSX.read(arrayBuffer, { type: 'array', codepage: 65001, cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
 
   // Convert to array of arrays (skip empty rows).
@@ -187,9 +329,7 @@ export async function importFromExcel(file, expectedEnte) {
 
     const nroRaw = String(row[0] || '').trim();
     const tipoRaw = String(row[1] || '07').trim();
-    const fecha1Raw = String(row[2] || '').trim();
     const importe1Raw = row[3];
-    const fecha2Raw = String(row[4] || '').trim();
     const importe2Raw = row[5];
 
     // Validate Nro Comprobante.
@@ -209,45 +349,30 @@ export async function importFromExcel(file, expectedEnte) {
     const tipoClean = tipoRaw.replace(/\D/g, '');
     const tipoComprobante = tipoClean.padStart(2, '0').slice(0, 2);
 
-    // Fecha 1er Vto.
-    const fecha1Clean = fecha1Raw.replace(/\D/g, '');
-    if (fecha1Clean.length !== 6) {
-      errors.push({ row: rowNum, error: `Fecha 1er Vto inválida: "${fecha1Raw}". Debe ser DDMMAA (6 dígitos).` });
+    // Fecha 1er Vto (soporta número serial de Excel o texto DDMMAA/DD/MM/AA).
+    const fecha1 = parseDate(row[2]);
+    if (!fecha1) {
+      errors.push({ row: rowNum, error: `Fecha 1er Vto inválida: "${row[2]}". Usá formato fecha de Excel, DDMMAA, DD/MM/AA o DD/MM/AAAA.` });
       continue;
     }
-    const fecha1 = fecha1Clean;
 
-    // Importe 1er Vto.
-    if (importe1Raw === '' || importe1Raw === undefined || importe1Raw === null) {
-      errors.push({ row: rowNum, error: 'Importe 1er Vto vacío.' });
+    // Importe 1er Vto (soporta número directo, texto con coma o punto decimal).
+    const importe1Cents = parseImporte(importe1Raw);
+    if (importe1Cents === null) {
+      errors.push({ row: rowNum, error: `Importe 1er Vto inválido: "${importe1Raw}". Ingresá un número positivo (ej: 120553,57).` });
       continue;
     }
-    const importe1Num = Number(importe1Raw);
-    if (Number.isNaN(importe1Num) || importe1Num < 0) {
-      errors.push({ row: rowNum, error: `Importe 1er Vto inválido: "${importe1Raw}".` });
-      continue;
-    }
-    const importe1Cents = pesosToCents(importe1Num);
 
-    // Fecha 2do Vto.
-    const fecha2Clean = fecha2Raw.replace(/\D/g, '');
-    if (fecha2Clean.length !== 6) {
-      errors.push({ row: rowNum, error: `Fecha 2do Vto inválida: "${fecha2Raw}". Debe ser DDMMAA (6 dígitos).` });
-      continue;
-    }
-    const fecha2 = fecha2Clean;
+    // Fecha 2do Vto — si está vacía, se copia del 1er vencimiento.
+    const fecha2 = parseDate(row[4]) || fecha1;
 
-    // Importe 2do Vto.
-    if (importe2Raw === '' || importe2Raw === undefined || importe2Raw === null) {
-      errors.push({ row: rowNum, error: 'Importe 2do Vto vacío.' });
+    // Importe 2do Vto — si está vacío se copia del 1er importe.
+    const importe2Parsed = parseImporte(importe2Raw);
+    if (importe2Parsed === null && importe2Raw !== '' && importe2Raw !== undefined && importe2Raw !== null) {
+      errors.push({ row: rowNum, error: `Importe 2do Vto inválido: "${importe2Raw}". Ingresá un número positivo (ej: 120553,57).` });
       continue;
     }
-    const importe2Num = Number(importe2Raw);
-    if (Number.isNaN(importe2Num) || importe2Num < 0) {
-      errors.push({ row: rowNum, error: `Importe 2do Vto inválido: "${importe2Raw}".` });
-      continue;
-    }
-    const importe2Cents = pesosToCents(importe2Num);
+    const importe2Cents = importe2Parsed ?? importe1Cents;
 
     // Build barcode.
     try {
@@ -285,6 +410,9 @@ export function downloadTemplate(expectedEnte) {
   // Números como valores planos (sin formato local). Excel lo muestra según
   // la configuración regional del usuario (en Argentina: 120.553,57).
   const exampleImporte = 120553.57;
+  // Fecha ejemplo: 26/06/2004 — SheetJS convierte Date a serial automáticamente
+  // y aplica un formato de fecha. En Excel argentino se verá como 26/06/2004.
+  const exampleDate = new Date(Date.UTC(2004, 5, 26));
 
   const wb = XLSX.utils.book_new();
   const wsData = [
@@ -292,9 +420,9 @@ export function downloadTemplate(expectedEnte) {
     [
       '00000192840',
       '07',
-      '040626',
+      exampleDate,
       exampleImporte,
-      '040626',
+      exampleDate,
       exampleImporte,
     ],
   ];
@@ -330,7 +458,7 @@ export function downloadTemplate(expectedEnte) {
     ['', '', '', '', '', '', ''],
     ['Notas:', '', '', '', '', '', ''],
     ['• Dejá la columna Tipo vacía y se usará "07" por defecto.', '', '', '', '', '', ''],
-    ['• Si 1er y 2do vencimiento son iguales, se usa el mismo importe para ambos.', '', '', '', '', '', ''],
+    ['• Si la factura tiene un solo vencimiento, dejá las columnas Fecha 2do Vto e Importe 2do Vto vacías — se copian automáticamente del 1ro.', '', '', '', '', '', ''],
     ['• Los importes los ingresás en pesos (ej: 120553,57) y la app los convierte a centavos (12055357).', '', '', '', '', '', ''],
     ['• El orden de las columnas debe respetarse. Los encabezados pueden estar en cualquier fila de las primeras 5.', '', '', '', '', '', ''],
   ];
