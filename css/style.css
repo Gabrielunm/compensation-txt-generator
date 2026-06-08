@@ -504,6 +504,14 @@ main.container {
   margin-top: 0.15rem;
 }
 
+/* Date picker hint when vencimiento is forced */
+.date-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--brand-text-muted);
+  margin-top: 0.25rem;
+}
+
 .comp-upload-panel__remove-btn {
   background: none;
   border: none;

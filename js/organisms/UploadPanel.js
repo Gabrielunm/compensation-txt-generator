@@ -83,6 +83,7 @@ export function UploadPanel({ onProcess }) {
       } else {
         vencimiento = 'auto';
       }
+      dateHint.hidden = vencimiento === 'auto';
     });
 
     labelEl.append(cb, ` ${label}`);
@@ -113,6 +114,12 @@ export function UploadPanel({ onProcess }) {
   });
   container.append(dateField);
 
+  const dateHint = document.createElement('small');
+  dateHint.className = 'date-hint';
+  dateHint.textContent = 'La fecha se usa solo para el registro RAFAM (F31).';
+  dateHint.hidden = true;
+  container.append(dateHint);
+
   // --- Generate button ---
   const generateBtn = Button({
     label: 'Generar TXT',
@@ -131,6 +138,7 @@ export function UploadPanel({ onProcess }) {
       fechaEmision = null;
       vencimiento = 'auto';
       document.querySelectorAll('.vto-selector__input').forEach((cb) => { cb.checked = false; });
+      dateHint.hidden = true;
       renderFileList();
       updateButtonState();
     },
