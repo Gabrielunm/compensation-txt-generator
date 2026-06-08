@@ -297,18 +297,6 @@ export function downloadTemplate(expectedEnte) {
       '040626',
       exampleImporte,
     ],
-    ['', '', '', '', '', ''],
-    ['Instrucciones:', '', '', '', '', ''],
-    ['• Nro Comprobante: hasta 11 dígitos (se completa con ceros a la izquierda automáticamente).', '', '', '', '', ''],
-    ['• Tipo: 07 para consolidación (default). Otros valores según corresponda.', '', '', '', '', ''],
-    ['• Fechas: formato DDMMAA (ej. 040626 = 26 de junio de 2004).', '', '', '', '', ''],
-    ['• Importes: en pesos argentinos. Usá punto (.) o coma (,) como separador decimal según tu Excel.', '', '', '', '', ''],
-    ['  Ej: 120553.57 o 120553,57 o 120.553,57 — la app lo interpreta correctamente.', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['Campos auto-calculados (no incluir en el archivo):', '', '', '', '', ''],
-    [`• Código de ente: ${expectedEnte} (de la configuración del municipio).`, '', '', '', '', ''],
-    ['• Código de barra de 50 dígitos (se genera automáticamente al importar).', '', '', '', '', ''],
-    ['• Dígito verificador (algoritmo Formato 50).', '', '', '', '', ''],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
