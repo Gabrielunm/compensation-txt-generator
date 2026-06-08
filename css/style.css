@@ -1,0 +1,627 @@
+/*
+ * style.css — Pico CSS theme overrides for Compensation TXT Generator
+ *
+ * This file extends Pico CSS v2 defaults with project-specific customizations.
+ * Custom properties override Pico's CSS variables for brand consistency.
+ */
+
+:root {
+  /* Brand colors — configurable per entity via theme.js */
+  --brand-primary: #00ad9c;
+  --brand-primary-hover: #009688;
+  --brand-accent: #f6a300;
+  --brand-secondary: #00a8e8;
+  --brand-dark: #231F20;
+  --brand-bg: #f5f7fa;
+  --brand-surface: #ffffff;
+  --brand-text: #50535c;
+  --brand-text-muted: #aaaaaa;
+  --brand-success: #2fb344;
+  --brand-error: #d63939;
+  --brand-warning: #f59f00;
+
+  /* Pico CSS variable overrides — driven by brand palette */
+  --pico-color: var(--brand-text);
+  --pico-background-color: var(--brand-bg);
+  --pico-primary: var(--brand-primary);
+  --pico-primary-hover: var(--brand-primary-hover);
+  --pico-font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --pico-border-radius: 8px;
+  --pico-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Subtle background texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 0% 0%, rgba(0, 173, 156, 0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(0, 168, 232, 0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Utility: visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Drop zone state indicators */
+.drop-zone {
+  border: 2px dashed var(--pico-primary);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.25s ease, background-color 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--brand-surface);
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.drop-zone p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--brand-text);
+}
+
+.drop-zone small {
+  color: var(--brand-text-muted);
+}
+
+.drop-zone--dragging {
+  border-color: var(--brand-accent);
+  background: rgba(246, 163, 0, 0.04);
+  transform: scale(1.01);
+  box-shadow: 0 8px 24px rgba(246, 163, 0, 0.12);
+}
+
+.drop-zone--has-files {
+  border-style: solid;
+}
+
+/* File list item */
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #e9ecef;
+  transition: background-color 0.2s ease;
+}
+
+.file-item:hover {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-item--error {
+  background-color: rgba(214, 57, 57, 0.05);
+}
+
+/* Results table wrapper for horizontal scroll */
+.table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Summary header */
+.summary-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background: var(--brand-surface);
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Memory warning banner */
+.memory-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  color: #856404;
+  margin-top: 0.5rem;
+}
+
+/* ================================================================
+   BEM badge classes (referenced by Badge atom component)
+   ================================================================ */
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.badge--success {
+  background-color: #2fb344;
+  color: #fff;
+}
+
+.badge--error {
+  background-color: #d63939;
+  color: #fff;
+}
+
+.badge--warning {
+  background-color: #f59f00;
+  color: #1e1e1e;
+}
+
+.badge--info {
+  background-color: #1b9aea;
+  color: #fff;
+}
+
+.badge--neutral {
+  background-color: #e9ecef;
+  color: #1e1e1e;
+}
+
+/* ================================================================
+   Button atom — comp- prefixed overrides
+   ================================================================ */
+.comp-btn--danger {
+  --pico-border-color: #d63939;
+  border-color: #d63939;
+  color: #d63939;
+}
+
+.comp-btn__icon {
+  margin-right: 0.375rem;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Prevent button text from overflowing */
+.comp-upload-panel .comp-btn,
+.comp-upload-panel button:not(.comp-upload-panel__remove-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.comp-upload-panel button.outline {
+  min-width: 120px;
+}
+
+/* ================================================================
+   Icon atom
+   ================================================================ */
+.comp-icon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.comp-icon--sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.comp-icon--md {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.comp-icon--lg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.comp-icon--fallback {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ================================================================
+   DatePickerField
+   ================================================================ */
+.comp-date-field {
+  margin-top: 1rem;
+}
+
+.comp-date-field__error {
+  color: #d63939;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* ================================================================
+   StatusIndicator
+   ================================================================ */
+.comp-status {
+  margin-bottom: 0.75rem;
+}
+
+.comp-status--error progress {
+  --pico-progress-color: #d63939;
+}
+
+.comp-status--done progress {
+  --pico-progress-color: #2fb344;
+}
+
+.comp-status__label {
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  text-align: center;
+}
+
+/* ================================================================
+   File item — shared across organisms
+   ================================================================ */
+.file-item__name {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item__size {
+  color: #6c757d;
+  font-size: 0.75rem;
+  margin: 0 0.75rem;
+}
+
+.file-item__barcode {
+  font-size: 0.75rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item--processing {
+  background-color: rgba(27, 154, 234, 0.04);
+}
+
+.file-item--done {
+  background-color: rgba(47, 179, 68, 0.04);
+}
+
+/* ================================================================
+   UploadPanel
+   ================================================================ */
+.comp-upload-panel__file-list {
+  margin-top: 0.75rem;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: var(--brand-surface);
+}
+
+.comp-upload-panel__remove-btn {
+  background: none;
+  border: none;
+  color: #d63939;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.comp-upload-panel__remove-btn:hover {
+  opacity: 0.7;
+}
+
+/* ================================================================
+   ProcessingQueue
+   ================================================================ */
+.comp-processing-queue__log {
+  margin-top: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ================================================================
+   ResultsTable
+   ================================================================ */
+.comp-results-table__empty {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.comp-results-table__barcode {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+}
+
+.comp-results-table__importe {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-results-table__row:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.comp-results-table__detail-cell {
+  padding: 0.5rem 1rem !important;
+  background-color: #f8f9fa;
+}
+
+.comp-results-table__detail-cell code {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.comp-results-table__sort-arrow {
+  font-size: 0.7rem;
+  margin-left: 0.25rem;
+}
+
+/* ================================================================
+   CompensationReport
+   ================================================================ */
+.comp-report__date,
+.comp-report__total-records,
+.comp-report__total-amount {
+  font-weight: 600;
+}
+
+.comp-report__table {
+  margin-top: 0.75rem;
+}
+
+.comp-report__importe {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-report__errors {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #f5c2c2;
+  border-radius: 8px;
+  background-color: #fff5f5;
+}
+
+.comp-report__error-msg {
+  color: #d63939;
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+}
+
+.comp-report__error-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+.comp-report__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.comp-report__record-row td {
+  font-size: 0.875rem;
+}
+
+/* ================================================================
+   Drop zone summary
+   ================================================================ */
+.drop-zone__summary {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* ================================================================
+   Branded Header
+   ================================================================ */
+.app-header {
+  background: linear-gradient(135deg, var(--brand-dark) 0%, #2d2a2b 100%);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-header__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-header__logo {
+  height: 36px;
+  width: auto;
+  display: block;
+}
+
+.app-header__titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header__title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.app-header__subtitle {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.3;
+}
+
+.app-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-header__help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.app-header__help-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.app-header__help-btn i {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* ================================================================
+   Footer
+   ================================================================ */
+.app-footer {
+  margin-top: 3rem;
+  background: var(--brand-dark);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 1.25rem 1.5rem;
+  font-size: 0.8rem;
+}
+
+.app-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-footer__info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-footer__logo {
+  height: 22px;
+  width: auto;
+  opacity: 0.7;
+}
+
+.app-footer__text {
+  opacity: 0.6;
+}
+
+.app-footer__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.app-footer__shield-icon {
+  width: 0.9em;
+  height: 0.9em;
+}
+
+/* ================================================================
+   Driver.js tour overrides
+   ================================================================ */
+.driver-popover {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.driver-popover-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.driver-popover-footer button {
+  font-size: 0.8rem;
+}
+
+.driver-popover-prev-btn {
+  font-size: 0.8rem;
+}
+
+/* ================================================================
+   Responsive adjustments
+   ================================================================ */
+@media (max-width: 600px) {
+  .app-header__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .app-header__subtitle {
+    display: none;
+  }
+
+  .app-footer__inner {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .app-footer__info {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}

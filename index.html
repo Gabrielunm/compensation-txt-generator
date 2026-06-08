@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+  Compensation TXT Generator
+  Batch-process PDF invoices and generate RAFAMR01-format compensation files.
+
+  Dependencies (loaded via CDN):
+    - Pico CSS v2     : Minimal CSS framework
+    - Lucide          : Icon library
+    - pdf.js v3       : PDF text extraction (client-side)
+    - Zod v3          : Runtime schema validation
+-->
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de TXT de Compensación</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2300ad9c'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>C</text></svg>">
+
+  <!-- Google Fonts: DM Sans — distinctive, refined typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Pico CSS (minimal CSS framework) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+  <!-- Driver.js (product tour) styles -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@latest/dist/driver.css"/>
+
+  <!-- Lucide, pdf.js, Zod, JSZip — loaded synchronously before module -->
+  <script src="https://unpkg.com/lucide@0.468.0"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://unpkg.com/zod@3.23.8/lib/index.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- Project styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       Branded Header
+       ============================================================ -->
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="app-header__brand">
+        <img src="assets/logo.png" alt="Logo" class="app-header__logo" id="step-header">
+        <div class="app-header__titles">
+          <span class="app-header__title">Generador TXT de Compensación</span>
+          <span class="app-header__subtitle">RAFAMR01 &mdash; Lote de Pagos Electrónicos</span>
+        </div>
+      </div>
+      <nav class="app-header__nav">
+        <button id="btn-help-tour" class="app-header__help-btn" title="Iniciar guía interactiva">
+          <i data-lucide="help-circle"></i>
+          <span>Guía</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       Main Content
+       ============================================================ -->
+  <main class="container">
+    <div id="app"></div>
+  </main>
+
+  <!-- ============================================================
+       Footer
+       ============================================================ -->
+  <footer class="app-footer">
+    <div class="app-footer__inner">
+      <div class="app-footer__info">
+        <img src="assets/logo-white.png" alt="" class="app-footer__logo">
+        <span class="app-footer__text">Generador TXT de Compensación &mdash; v1.0.0</span>
+      </div>
+      <div class="app-footer__badge">
+        <i data-lucide="shield" class="app-footer__shield-icon"></i>
+        <span>100% local &mdash; no se suben datos</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Driver.js (product tour) -->
+  <script src="https://cdn.jsdelivr.net/npm/driver.js@latest/dist/driver.js.iife.js"></script>
+
+  <!-- Application entry point -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
