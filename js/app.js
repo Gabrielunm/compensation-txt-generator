@@ -119,15 +119,15 @@ function initUploadTour() {
         element: '#step-header',
         popover: {
           title: 'Generador TXT de Compensación',
-          description: `¡Bienvenido! Esta herramienta genera archivos TXT de compensación RAFAMR01 a partir de facturas PDF de ${THEME.name}. Todo se procesa localmente en tu navegador.`,
+          description: `¡Bienvenido! Esta herramienta genera archivos TXT de compensación RAFAMR01 a partir de comprobantes Tipo 7 de ${THEME.name}. Todo se procesa localmente en tu navegador — no se sube ningún dato a ningún servidor.`,
           side: 'bottom',
         },
       },
       {
         element: '.comp-upload-panel',
         popover: {
-          title: 'Subir PDFs',
-          description: 'Arrastrá tus facturas PDF Tipo 7 aquí, o hacé clic para buscarlas. Podés subir hasta 400 archivos por lote.',
+          title: 'Subir archivos',
+          description: 'Arrastrá tus facturas PDF (Tipo 7) o archivos TXT con códigos de barra de 50 dígitos. También podés hacer clic para buscarlos.',
           side: 'bottom',
         },
       },
@@ -135,7 +135,15 @@ function initUploadTour() {
         element: '.comp-date-field',
         popover: {
           title: 'Fecha de Pago',
-          description: 'Seleccioná la fecha de pago para este lote. Por defecto es hoy. La fecha se escribe en el campo Fecha Pago del registro RAFAM.',
+          description: 'Seleccioná la fecha de pago para este lote. Por defecto es hoy. Se usa en el campo Fecha Pago (F31) del registro RAFAM.',
+          side: 'bottom',
+        },
+      },
+      {
+        element: '.vto-selector',
+        popover: {
+          title: 'Vencimiento a aplicar',
+          description: 'Elegí cómo se resuelve el importe: automático según fecha de pago, o forzando 1er / 2do vencimiento para todos los registros del lote.',
           side: 'bottom',
         },
       },
@@ -143,7 +151,7 @@ function initUploadTour() {
         element: '.comp-upload-panel .comp-btn',
         popover: {
           title: 'Generar TXT',
-          description: 'Hacé clic para comenzar. Cada PDF se extrae, valida y convierte en un registro RAFAMR01 de 279 caracteres.',
+          description: 'Hacé clic para empezar. Cada archivo se procesa uno por uno: se extrae el código de barra, se valida, se parsea y se convierte en un registro RAFAMR01 de 279 caracteres.',
           side: 'top',
         },
       },

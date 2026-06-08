@@ -67,7 +67,7 @@ export function FileDropZone({
   container.append(prompt);
 
   const hint = document.createElement('small');
-  hint.textContent = `Solo archivos ${accept} — hasta 400 por lote`;
+  hint.textContent = `Solo archivos ${accept}`;
   container.append(hint);
 
   // File count / size summary (visible in has-files state).
