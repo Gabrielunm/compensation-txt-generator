@@ -70,16 +70,21 @@ function generateExcelBytes(records, errors, fechaEmision) {
 
   // --- Hoja 1: Detalle ---
   const detailRows = [
-    ['#', 'Comprobante', 'Tipo', 'Importe', 'Vto. 1', 'Vto. 2', 'Código de Barra', 'Archivo'],
+    ['#', 'Comprobante', 'Tipo', 'Importe 1', 'Importe 2', 'Importe cobrado', 'Vto. 1', 'Vto. 2', 'Fecha pago', 'Código de Barra', 'Archivo'],
   ];
   records.forEach((r, i) => {
+    // Parse actual importe from F14 in the record (positions 77-88, 11 chars, cents).
+    const importePagado = Number.parseInt(r.record.substring(77, 88), 10) / 100;
     detailRows.push([
       i + 1,
       r.fields.nroComprobante,
       r.fields.tipoComprobante,
       r.fields.importe1 / 100,
+      r.fields.importe2 / 100,
+      importePagado,
       r.fields.fecha1,
       r.fields.fecha2,
+      fechaEmision,
       r.barcode,
       r.fileName,
     ]);
@@ -92,9 +97,12 @@ function generateExcelBytes(records, errors, fechaEmision) {
     { wch: 5 },   // #
     { wch: 14 },  // Comprobante
     { wch: 6 },   // Tipo
-    { wch: 14 },  // Importe
+    { wch: 14 },  // Importe 1
+    { wch: 14 },  // Importe 2
+    { wch: 14 },  // Importe cobrado
     { wch: 10 },  // Vto. 1
     { wch: 10 },  // Vto. 2
+    { wch: 12 },  // Fecha pago
     { wch: 54 },  // Código de Barra
     { wch: 24 },  // Archivo
   ];

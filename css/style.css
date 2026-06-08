@@ -463,6 +463,47 @@ main.container {
   background: var(--brand-surface);
 }
 
+/* Vencimiento selector */
+.vto-selector {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--brand-surface);
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+}
+
+.vto-selector__legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand-text);
+  margin-right: 0.25rem;
+}
+
+.vto-selector__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.vto-selector__input {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.vto-selector__hint {
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--brand-text-muted);
+  margin-top: 0.15rem;
+}
+
 .comp-upload-panel__remove-btn {
   background: none;
   border: none;

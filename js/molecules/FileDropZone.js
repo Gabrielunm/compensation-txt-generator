@@ -52,7 +52,7 @@ function totalBytes(files) {
  */
 export function FileDropZone({
   onFilesSelected,
-  accept = '.pdf',
+  accept = '.pdf,.txt',
   multiple = true,
 }) {
   const container = document.createElement('div');
@@ -63,7 +63,7 @@ export function FileDropZone({
   // --- Visual state elements ---
 
   const prompt = document.createElement('p');
-  prompt.textContent = 'Arrastrá PDFs o hacé clic para buscar';
+  prompt.textContent = 'Arrastrá PDFs o TXT con códigos de barra';
   container.append(prompt);
 
   const hint = document.createElement('small');
@@ -85,11 +85,11 @@ export function FileDropZone({
     'Ensure a stable connection and sufficient memory.';
   container.append(warning);
 
-  // --- Hidden file input ---
+  // --- Hidden file input — accepts PDF and TXT ---
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
-  fileInput.accept = accept;
+  fileInput.accept = '.pdf,.txt';
   fileInput.multiple = multiple;
   fileInput.hidden = true;
   container.append(fileInput);
@@ -112,35 +112,36 @@ export function FileDropZone({
       prompt.textContent = 'Soltá los archivos para agregarlos';
     } else if (state === 'has-files') {
       container.classList.add('drop-zone--has-files');
-      prompt.textContent = 'Arrastrá más PDFs o hacé clic para agregar';
+      prompt.textContent = 'Arrastrá más PDFs o TXT para agregar';
       const size = formatSize(totalBytes(currentFiles));
-      summary.textContent = `${currentFiles.length} file(s) — ${size} total`;
+      summary.textContent = `${currentFiles.length} archivo(s) — ${size} total`;
       summary.hidden = false;
 
       warning.hidden = currentFiles.length < MEMORY_WARN_THRESHOLD;
     } else {
       // empty
-      prompt.textContent = 'Arrastrá PDFs o hacé clic para buscar';
+      prompt.textContent = 'Arrastrá PDFs o TXT con códigos de barra';
       summary.hidden = true;
       warning.hidden = true;
     }
   }
 
   /**
-   * Filters dropped/selected files to only PDFs, then emits them.
+   * Filters dropped/selected files to PDFs and TXTs, then emits them.
    *
    * @param {File[]} rawFiles - The files from the drop or input event.
    */
   function addFiles(rawFiles) {
-    const pdfs = rawFiles.filter(
-      (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
+    const validFiles = rawFiles.filter(
+      (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf') ||
+            f.type === 'text/plain' || f.name.toLowerCase().endsWith('.txt'),
     );
-    if (pdfs.length === 0) {
+    if (validFiles.length === 0) {
       return;
     }
 
-    currentFiles = currentFiles.concat(pdfs);
-    onFilesSelected(pdfs);
+    currentFiles = currentFiles.concat(validFiles);
+    onFilesSelected(validFiles);
 
     setState(currentFiles.length > 0 ? 'has-files' : 'empty');
   }

@@ -43,7 +43,7 @@ import { formatDate } from '../utils/format.js';
  *        today minus 30 days.
  * @param {string} [props.maxDate]
  *        Maximum allowed date as YYYY-MM-DD. Defaults to today.
- * @param {string} [props.label='Fecha de Emisión']
+ * @param {string} [props.label='Fecha Pago']
  *        Visible label text for the input.
  * @returns {HTMLElement} A field container element with label, input,
  *          and optional error message.

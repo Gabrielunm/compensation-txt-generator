@@ -2,7 +2,8 @@
  * RAFAMR01 record builder service.
  *
  * Assembles a 279-character fixed-width record from barcode fields, hardcoded
- * defaults (sourced from CEAMSE.SQL), and a user-supplied Fecha Pago.
+ * defaults (sourced from the RAFAMR01 spec and SQL template), and a
+ * user-supplied Fecha Pago.
  *
  * Record layout (40 fields, 279 chars total, no header/footer):
  *   F01  [001–008] RAFAMR01
@@ -184,21 +185,26 @@ function toComparableDate(dateStr, format) {
  * Resolves the effective importe (cents) based on payment date vs due dates.
  *
  * Rule:
- *   - Paid on or before 1st due date → use importe1
- *   - Paid after 1st due date       → use importe2 (may include recargo)
+ *   - `'1'`             → always use importe1
+ *   - `'2'`             → always use importe2
+ *   - `'auto'` (default) → importe1 if paid on/before 1st vto, else importe2
  *
  * @param {import('./barcode-parser.js').BarcodeFields} fields
- * @param {string} fechaEmision - Payment date in AAMMDD format.
+ * @param {string} fechaEmision - Payment date in AAMMDD format (only used in 'auto' mode).
+ * @param {'1'|'2'|'auto'} [mode='auto'] - Which importe to use.
  * @returns {number} The importe in integer cents.
  */
-function resolveImporte(fields, fechaEmision) {
+function resolveImporte(fields, fechaEmision, mode) {
+  // If both due dates are identical, there's only one importe.
+  if (fields.fecha1 === fields.fecha2) { return fields.importe1; }
+
+  if (mode === '1') { return fields.importe1; }
+  if (mode === '2') { return fields.importe2; }
+
+  // 'auto' — compare payment date vs first due date
   const pagada = toComparableDate(fechaEmision, 'aammdd');
   const vto1 = toComparableDate(fields.fecha1, 'ddmmaa');
-
-  if (pagada <= vto1) {
-    return fields.importe1;
-  }
-  return fields.importe2;
+  return pagada <= vto1 ? fields.importe1 : fields.importe2;
 }
 
 /**
@@ -215,6 +221,8 @@ function resolveImporte(fields, fechaEmision) {
  * @param {string} [rawBarcode] - Original 50-digit barcode. If provided, used
  *   directly for F30 (Codigo de Barra). Falls back to reconstructing from
  *   fields if omitted.
+ * @param {'1'|'2'|'auto'} [vencimiento='auto'] - Which due date importe to
+ *   use. 'auto' resolves based on payment date vs first due date.
  * @returns {string} A 279-character fixed-width record string.
  *
  * @throws {Error} If `fields` is null or `fechaEmision` is not a valid
@@ -222,10 +230,10 @@ function resolveImporte(fields, fechaEmision) {
  *
  * @example
  *   const fields = parseBarcode('01350406260050601016040626005060101600000192845070');
- *   const record = buildRecord(fields, '260605', '01350406260050601016040626005060101600000192845070');
+ *   const record = buildRecord(fields, '260605', '01350406260050601016040626005060101600000192845070', '1');
  *   // record.length === 279
  */
-export function buildRecord(fields, fechaEmision, originalBarcode) {
+export function buildRecord(fields, fechaEmision, originalBarcode, vencimiento = 'auto') {
   if (!fields) {
     throw new Error('buildRecord: fields parameter is required');
   }
@@ -241,9 +249,8 @@ export function buildRecord(fields, fechaEmision, originalBarcode) {
   // F12 — ente code from barcode substring(0, 4).
   const f12 = fields.ente;
 
-  // F14 — importe resolved from payment date vs due dates.
-  // Uses importe1 if paid on/before 1st vto, importe2 otherwise.
-  const importePagado = resolveImporte(fields, fechaEmision);
+  // F14 — importe resolved from user's vencimiento choice or auto.
+  const importePagado = resolveImporte(fields, fechaEmision, vencimiento);
   const f14 = String(importePagado).padStart(11, '0');
 
   // F22 — fecha1 converted from DDMMAA to AAMMDD.

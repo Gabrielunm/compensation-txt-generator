@@ -5,8 +5,12 @@
  * validation, and record-building pipeline. Processes one file at a time
  * to manage browser memory, emitting real-time per-file status updates.
  *
+ * Supports both PDF and TXT files:
+ *   - **PDF**: text extracted via pdf.js, barcode found by regex.
+ *   - **TXT**: file read as plain text, barcode found by regex.
+ *
  * Pipeline (per file):
- *   1. `extractBarcodeFromPDF(file)` — pdf.js text extraction.
+ *   1. Barcode extraction (pdf.js for PDF, raw text for TXT).
  *   2. `validateCheckDigit(barcode)` — Formato 50 check digit.
  *   3. `parseBarcode(barcode, { expectedEnte })` — field extraction + entity validation.
  *   4. `buildRecord(fields, fechaEmision)` — RAFAMR01 record.
@@ -96,18 +100,28 @@ function createLogEntry(fileName, status, barcode) {
  * @param {Function} onProgress  - Called with status updates.
  * @returns {Promise<ParsedRecord|ProcessError>}
  */
-async function processFile(file, fechaEmision, expectedEnte, onProgress) {
+async function processFile(file, fechaEmision, expectedEnte, vencimiento, onProgress) {
   const fileName = file.name;
 
   try {
-    // Step 1: Extraction.
+    // Step 1: Extract barcode from file (PDF → pdf.js, TXT → read text).
     onProgress(fileName, 'processing', null);
-    const barcode = await extractBarcodeFromPDF(file);
+
+    let barcode = null;
+    const isTxt = fileName.toLowerCase().endsWith('.txt');
+
+    if (isTxt) {
+      const text = await file.text();
+      const match = text.match(/\b\d{50}\b/);
+      barcode = match ? match[0] : null;
+    } else {
+      barcode = await extractBarcodeFromPDF(file);
+    }
 
     if (!barcode) {
       return {
         fileName,
-        error: 'No se encontró código de barra o el PDF no tiene capa de texto.',
+        error: 'No se encontró código de barra de 50 dígitos en el archivo.',
         step: 'extraction',
       };
     }
@@ -126,7 +140,7 @@ async function processFile(file, fechaEmision, expectedEnte, onProgress) {
     const fields = parseBarcode(barcode, { expectedEnte });
 
     // Step 4: Build record (pass original barcode to avoid field reconstruction errors).
-    const record = buildRecord(fields, fechaEmision, barcode);
+    const record = buildRecord(fields, fechaEmision, barcode, vencimiento);
 
     onProgress(fileName, 'done', barcode);
 
@@ -179,7 +193,7 @@ async function processFile(file, fechaEmision, expectedEnte, onProgress) {
  *   });
  *   container.append(queue);
  */
-export function ProcessingQueue({ files, fechaEmision, expectedEnte = CONFIG.entity.code, onComplete }) {
+export function ProcessingQueue({ files, fechaEmision, expectedEnte = CONFIG.entity.code, vencimiento = 'auto', onComplete }) {
   const container = document.createElement('div');
   container.className = 'comp-processing-queue';
 
@@ -243,7 +257,7 @@ export function ProcessingQueue({ files, fechaEmision, expectedEnte = CONFIG.ent
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const result = await processFile(file, fechaAAMMDD, expectedEnte, updateLog);
+      const result = await processFile(file, fechaAAMMDD, expectedEnte, vencimiento, updateLog);
 
       if ('step' in result && 'error' in result) {
         errors.push(/** @type {ProcessError} */ (result));

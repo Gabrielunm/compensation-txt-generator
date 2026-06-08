@@ -54,6 +54,49 @@ export function UploadPanel({ onProcess }) {
   });
   container.append(dropZone);
 
+  // --- Vencimiento selector (mutually exclusive checkboxes) ---
+  const vtoContainer = document.createElement('div');
+  vtoContainer.className = 'vto-selector';
+
+  const vtoLegend = document.createElement('span');
+  vtoLegend.className = 'vto-selector__legend';
+  vtoLegend.textContent = 'Vencimiento a aplicar:';
+  vtoContainer.append(vtoLegend);
+
+  let vencimiento = 'auto';
+
+  function makeVtoCheckbox(id, label, value) {
+    const labelEl = document.createElement('label');
+    labelEl.className = 'vto-selector__label';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = id;
+    cb.className = 'vto-selector__input';
+
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        vencimiento = value;
+        document.querySelectorAll('.vto-selector__input').forEach((other) => {
+          if (other.id !== id) { other.checked = false; }
+        });
+      } else {
+        vencimiento = 'auto';
+      }
+    });
+
+    labelEl.append(cb, ` ${label}`);
+    vtoContainer.append(labelEl);
+  }
+
+  makeVtoCheckbox('vto1', '1er vencimiento', '1');
+  makeVtoCheckbox('vto2', '2do vencimiento', '2');
+  const vtoHint = document.createElement('small');
+  vtoHint.className = 'vto-selector__hint';
+  vtoHint.textContent = 'Si no se selecciona ninguno, se elige automáticamente según la fecha de pago.';
+  vtoContainer.append(vtoHint);
+  container.append(vtoContainer);
+
   // --- File list ---
   const fileListContainer = document.createElement('div');
   fileListContainer.className = 'comp-upload-panel__file-list';
@@ -62,7 +105,7 @@ export function UploadPanel({ onProcess }) {
 
   // --- Date picker ---
   const dateField = DatePickerField({
-    label: 'Fecha de Emisión',
+    label: 'Fecha Pago',
     onChange: (date) => {
       fechaEmision = date;
       updateButtonState();
@@ -86,6 +129,8 @@ export function UploadPanel({ onProcess }) {
     onClick: () => {
       files = [];
       fechaEmision = null;
+      vencimiento = 'auto';
+      document.querySelectorAll('.vto-selector__input').forEach((cb) => { cb.checked = false; });
       renderFileList();
       updateButtonState();
     },
@@ -95,7 +140,7 @@ export function UploadPanel({ onProcess }) {
   // --- Generate handler ---
   generateBtn.addEventListener('click', () => {
     if (files.length > 0 && fechaEmision) {
-      onProcess(files, fechaEmision);
+      onProcess(files, fechaEmision, vencimiento);
     }
   });
 

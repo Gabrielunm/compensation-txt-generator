@@ -29,6 +29,7 @@ import { THEME } from './theme.js';
  *   — Files that failed processing.
  * @property {'idle'|'processing'|'ready'|'error'} status — Current state machine
  *   position.
+ * @property {'1'|'2'|'auto'} vencimiento — Which vencimiento to apply.
  */
 
 /** @type {AppState} */
@@ -38,6 +39,7 @@ const state = {
   records: [],
   errors: [],
   status: 'idle',
+  vencimiento: 'auto',
 };
 
 /** @type {HTMLElement|null} */
@@ -253,9 +255,10 @@ function render() {
  */
 function renderUploadPanel() {
   const panel = UploadPanel({
-    onProcess: (/** @type {File[]} */ files, /** @type {string} */ fecha) => {
+    onProcess: (/** @type {File[]} */ files, /** @type {string} */ fecha, /** @type {string} */ venc) => {
       state.files = files;
       state.fechaEmision = fecha;
+      state.vencimiento = venc || 'auto';
       state.status = 'processing';
       render();
     },
@@ -281,6 +284,7 @@ function renderProcessingQueue() {
     files: state.files,
     fechaEmision: state.fechaEmision,
     expectedEnte: CONFIG.entity.code,
+    vencimiento: state.vencimiento,
     onComplete: (/** @type {{ valid: import('./organisms/ProcessingQueue.js').ParsedRecord[], errors: import('./organisms/ProcessingQueue.js').ProcessError[] }} */ result) => {
       state.records = result.valid;
       state.errors = result.errors;
@@ -387,5 +391,6 @@ function resetToIdle() {
   state.records = [];
   state.errors = [];
   state.status = 'idle';
+  state.vencimiento = 'auto';
   render();
 }
