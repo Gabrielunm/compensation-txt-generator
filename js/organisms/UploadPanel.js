@@ -18,6 +18,8 @@ import { Button } from '../atoms/Button.js';
 import { FileDropZone } from '../molecules/FileDropZone.js';
 import { DatePickerField } from '../molecules/DatePickerField.js';
 import { formatSize } from '../utils/format.js';
+import { downloadTemplate } from '../services/excel-handler.js';
+import { CONFIG } from '../config.js';
 
 /**
  * Renders the upload panel with file management and date selection.
@@ -53,6 +55,16 @@ export function UploadPanel({ onProcess }) {
     },
   });
   container.append(dropZone);
+
+  // --- Template download button ---
+  const templateBtn = Button({
+    label: 'Descargar plantilla Excel',
+    icon: 'file-spreadsheet',
+    variant: 'outline',
+    onClick: () => downloadTemplate(CONFIG.entity.code),
+  });
+  templateBtn.className = 'template-btn';
+  container.append(templateBtn);
 
   // --- Vencimiento selector (mutually exclusive checkboxes) ---
   const vtoContainer = document.createElement('div');

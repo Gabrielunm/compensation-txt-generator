@@ -30,7 +30,8 @@
 
 import { StatusIndicator } from '../molecules/StatusIndicator.js';
 import { Badge } from '../atoms/Badge.js';
-import { extractBarcodeFromPDF } from '../services/pdf-extractor.js';
+import { extractBarcodesFromPDF } from '../services/pdf-extractor.js';
+import { importFromExcel } from '../services/excel-handler.js';
 import { validateCheckDigit } from '../services/check-digit.js';
 import { parseBarcode } from '../services/barcode-parser.js';
 import { buildRecord } from '../services/rafam-builder.js';
@@ -69,8 +70,9 @@ function toAAMMDD(ddmma) {
 
 /**
  * @typedef {Object} ProcessError
- * @property {string} fileName - The file that caused the error.
- * @property {string} error    - Human-readable error description.
+ * @property {string}   fileName  - The file that caused the error.
+ * @property {string}   [barcode] - The barcode that failed (multi-barcode files).
+ * @property {string}   error     - Human-readable error description.
  * @property {'extraction'|'validation'|'parsing'} step
  *   The pipeline step that failed.
  */
@@ -130,7 +132,10 @@ function createLogEntry(fileName, status, barcode) {
 }
 
 /**
- * Processes a single file through the pipeline.
+ * Processes a single file through the pipeline, extracting ALL barcodes.
+ *
+ * Each unique barcode found in the file goes through validation, parsing,
+ * and record building. Duplicate barcodes within the same file are skipped.
  *
  * When a specific vencimiento is selected ('1' or '2'), each record uses its
  * own due date as the payment date (Fecha Pago) and its own importe (Importe Cobrado).
@@ -143,111 +148,143 @@ function createLogEntry(fileName, status, barcode) {
  * @param {string} expectedEnte  - Expected entity code for barcode validation.
  * @param {'1'|'2'|'auto'} [vencimiento='auto'] - Which vencimiento to apply.
  * @param {Function} onProgress  - Called with status updates.
- * @returns {Promise<ParsedRecord|ProcessError>}
+ * @returns {Promise<{valid: ParsedRecord[], errors: ProcessError[]}>}
  */
 async function processFile(file, fechaEmision, expectedEnte, vencimiento, onProgress) {
   const fileName = file.name;
 
-  try {
-    // Step 1: Extract barcode from file (PDF → pdf.js, TXT → read text).
-    onProgress(fileName, 'processing', null);
+  /** @type {ParsedRecord[]} */
+  const valid = [];
+  /** @type {ProcessError[]} */
+  const errors = [];
 
-    let barcode = null;
-    const isTxt = fileName.toLowerCase().endsWith('.txt');
+  // Step 1: Extract all barcodes from file (PDF → pdf.js, TXT → read text, XLSX → rows).
+  onProgress(fileName, 'processing', null);
 
-    if (isTxt) {
-      const text = await file.text();
-      const match = text.match(/\b\d{50}\b/);
-      barcode = match ? match[0] : null;
-    } else {
-      barcode = await extractBarcodeFromPDF(file);
-    }
+  /** @type {string[]} */
+  let barcodes = [];
+  const lowerName = fileName.toLowerCase();
+  const isTxt = lowerName.endsWith('.txt');
+  const isExcel = lowerName.endsWith('.xlsx');
 
-    if (!barcode) {
-      return {
+  if (isExcel) {
+    const result = await importFromExcel(file, expectedEnte);
+    barcodes = result.valid.map((r) => r.barcode);
+    // Convert Excel row errors to ProcessError format.
+    for (const err of result.errors) {
+      errors.push({
         fileName,
-        error: 'No se encontró código de barra de 50 dígitos en el archivo.',
+        error: `Fila ${err.row}: ${err.error}`,
         step: 'extraction',
-      };
+      });
     }
-
-    // Step 2: Check digit validation.
-    const checkResult = validateCheckDigit(barcode);
-    if (!checkResult.isValid) {
-      return {
-        fileName,
-        error: `Dígito verificador inválido (calculado: ${checkResult.calc}, esperado: ${checkResult.expected}).`,
-        step: 'validation',
-      };
-    }
-
-    // Step 3: Parse barcode with entity validation.
-    const fields = parseBarcode(barcode, { expectedEnte });
-
-    // Step 3b: Resolve effective payment date and vencimiento mode per record.
-    let effectiveFecha = fechaEmision; // batch default
-    const effectiveVenc = vencimiento;
-
-    if (vencimiento === '1') {
-      // Use each record's own 1st due date as payment date.
-      effectiveFecha = toAAMMDD(fields.fecha1);
-    } else if (vencimiento === '2') {
-      // Use each record's own 2nd due date as payment date.
-      effectiveFecha = toAAMMDD(fields.fecha2);
-    } else {
-      // 'auto': validate payment date doesn't exceed the relevant due date.
-      const pagoNum = toComparableDate(fechaEmision, 'aammdd');
-      const vto1Num = toComparableDate(fields.fecha1, 'ddmmaa');
-      const vto2Num = toComparableDate(fields.fecha2, 'ddmmaa');
-
-      if (pagoNum > vto1Num && pagoNum > vto2Num) {
-        return {
-          fileName,
-          error: `La fecha de pago (${fechaEmision}) supera ambos vencimientos ` +
-                 `(${fields.fecha1}, ${fields.fecha2}).`,
-          step: 'validation',
-        };
-      }
-    }
-
-    // Step 4: Build record with per-record payment date and vencimiento mode.
-    const record = buildRecord(fields, effectiveFecha, barcode, effectiveVenc);
-
-    onProgress(fileName, 'done', barcode);
-
-    return {
-      fileName,
-      barcode,
-      fields,
-      record,
-      recordLength: record.length,
-    };
-  } catch (/** @type {*} */ err) {
-    const message = err instanceof Error ? err.message : String(err);
-    onProgress(fileName, 'error', null);
-
-    return {
-      fileName,
-      error: message,
-      step: 'parsing',
-    };
+  } else if (isTxt) {
+    const text = await file.text();
+    const matches = [...text.matchAll(/\b\d{50}\b/g)];
+    barcodes = matches.map((m) => m[0]);
+  } else {
+    barcodes = await extractBarcodesFromPDF(file);
   }
+
+  // Deduplicate within file while preserving order of first appearance.
+  barcodes = [...new Set(barcodes)];
+
+  if (barcodes.length === 0 && errors.length === 0) {
+    onProgress(fileName, 'error', null);
+    errors.push({
+      fileName,
+      error: 'No se encontraron códigos de barra de 50 dígitos en el archivo.',
+      step: 'extraction',
+    });
+  }
+
+  for (const barcode of barcodes) {
+    try {
+      // Step 2: Check digit validation.
+      const checkResult = validateCheckDigit(barcode);
+      if (!checkResult.isValid) {
+        errors.push({
+          fileName,
+          barcode,
+          error: `Dígito verificador inválido (calculado: ${checkResult.calc}, esperado: ${checkResult.expected}).`,
+          step: 'validation',
+        });
+        continue;
+      }
+
+      // Step 3: Parse barcode with entity validation.
+      const fields = parseBarcode(barcode, { expectedEnte });
+
+      // Step 3b: Resolve effective payment date and vencimiento mode per record.
+      let effectiveFecha = fechaEmision;
+      const effectiveVenc = vencimiento;
+
+      if (vencimiento === '1') {
+        effectiveFecha = toAAMMDD(fields.fecha1);
+      } else if (vencimiento === '2') {
+        effectiveFecha = toAAMMDD(fields.fecha2);
+      } else {
+        // 'auto': validate payment date doesn't exceed the relevant due date.
+        const pagoNum = toComparableDate(fechaEmision, 'aammdd');
+        const vto1Num = toComparableDate(fields.fecha1, 'ddmmaa');
+        const vto2Num = toComparableDate(fields.fecha2, 'ddmmaa');
+
+        if (pagoNum > vto1Num && pagoNum > vto2Num) {
+          errors.push({
+            fileName,
+            barcode,
+            error: `La fecha de pago (${fechaEmision}) supera ambos vencimientos (${fields.fecha1}, ${fields.fecha2}).`,
+            step: 'validation',
+          });
+          continue;
+        }
+      }
+
+      // Step 4: Build record with per-record payment date and vencimiento mode.
+      const record = buildRecord(fields, effectiveFecha, barcode, effectiveVenc);
+
+      valid.push({
+        fileName,
+        barcode,
+        fields,
+        record,
+        recordLength: record.length,
+      });
+    } catch (/** @type {*} */ err) {
+      errors.push({
+        fileName,
+        barcode,
+        error: err instanceof Error ? err.message : String(err),
+        step: 'parsing',
+      });
+    }
+  }
+
+  const status = valid.length > 0 ? 'done' : 'error';
+  const label = `${barcodes.length} código${barcodes.length !== 1 ? 's' : ''}`;
+  onProgress(fileName, status, label);
+
+  return { valid, errors };
 }
 
 /**
- * Renders a sequential batch processor for PDF files.
+ * Renders a sequential batch processor for PDF/TXT files.
  *
- * Processes files one at a time, showing real-time per-file status
- * with badges. Emits {@code onComplete} when all files are done.
+ * Processes files one at a time, extracting all barcodes per file.
+ * Duplicate barcodes are removed both within each file and across
+ * the entire batch (first occurrence wins). Shows real-time per-file
+ * status with badges. Emits {@code onComplete} when all files are done.
  *
  * @param {Object} props               - Component properties.
- * @param {File[]} props.files         - Array of PDF files to process.
+ * @param {File[]} props.files         - Array of PDF/TXT files to process.
  * @param {string} props.fechaEmision  - Fecha Pago in YYYY-MM-DD format.
  *        Internally converted to AAMMDD for the record builder.
  * @param {string} [props.expectedEnte='0135']
  *        Expected entity code for barcode validation. Set this to filter
  *        barcodes from a specific municipality or entity (e.g. `'0135'`
  *        for Hurlingham). Pass an empty string to skip entity validation.
+ * @param {'1'|'2'|'auto'} [props.vencimiento='auto']
+ *        Which vencimiento mode to apply to all records.
  * @param {Function} props.onComplete
  *        Callback invoked with {@link ProcessResult} when all files
  *        have been processed.
@@ -319,23 +356,28 @@ export function ProcessingQueue({ files, fechaEmision, expectedEnte = CONFIG.ent
     );
   }
 
-  // --- Process all files sequentially ---
+  // --- Process all files sequentially with batch-level dedup ---
   (async () => {
     /** @type {ParsedRecord[]} */
     const valid = [];
     /** @type {ProcessError[]} */
     const errors = [];
+    /** @type {Set<string>} */
+    const seenBarcodes = new Set();
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const result = await processFile(file, fechaAAMMDD, expectedEnte, vencimiento, updateLog);
 
-      if ('step' in result && 'error' in result) {
-        errors.push(/** @type {ProcessError} */ (result));
-      } else {
-        valid.push(/** @type {ParsedRecord} */ (result));
+      // Batch-level dedup: skip records whose barcode was already processed.
+      for (const rec of result.valid) {
+        if (!seenBarcodes.has(rec.barcode)) {
+          seenBarcodes.add(rec.barcode);
+          valid.push(rec);
+        }
       }
 
+      errors.push(...result.errors);
       updateProgress(i + 1);
     }
 

@@ -35,13 +35,13 @@ npm run lint      # ESLint — 0 errores
 
 ## 📦 Flujo de uso
 
-1. **Subí** los archivos — **PDFs** (facturas Tipo 7) o **TXT** (con código de barra de 50 dígitos)
+1. **Subí** los archivos — **PDFs** (facturas Tipo 7), **TXT** (con código de barra de 50 dígitos) o **Excel** (plantilla con datos de compensación)
 2. **Elegí** la fecha de pago del lote
 3. **Seleccioná** qué vencimiento aplicar:
    - **Automático** (default): usa el importe del 1er vencimiento si la fecha de pago es menor o igual al 1er vto, sino usa el 2do
    - **1er vencimiento**: fuerza el 1er vto como fecha de pago e importe para todos los registros
    - **2do vencimiento**: fuerza el 2do vto como fecha de pago e importe para todos los registros
-4. **Procesá** — extrae el código de barra de 50 dígitos de cada archivo (PDF → pdf.js, TXT → texto plano), valida dígito verificador, parsea campos, arma el registro de 279 caracteres
+4. **Procesá** — genera el código de barra de 50 dígitos de cada fuente (PDF → pdf.js, TXT → texto plano, Excel → filas convertidas con dígito verificador), valida, parsea campos, arma el registro de 279 caracteres
 5. **Descargá** un ZIP con:
    - `RAFAMR01_YYYYMMDD.txt` — registros de compensación (formato ancho fijo)
    - `Informe_YYYYMMDD.xlsx` — reporte en Excel con Detalle y Resumen
@@ -60,6 +60,39 @@ La app expone un selector con tres modos, definido en `UploadPanel.js` y `Proces
 > Si ambos vencimientos tienen la misma fecha, se usa siempre `importe1` (no hay distinción).
 
 En modo **Automático**, el importe se resuelve comprobante por comprobante comparando la fecha de pago contra el 1er vencimiento de cada factura. Esto permite mezclar comprobantes con distintos vencimientos en un mismo lote.
+
+## 📊 Importación desde Excel
+
+Además de PDFs y TXTs, podés importar un archivo Excel con los datos de los comprobantes. Descargá la **plantilla** desde el botón `Descargar plantilla Excel` en la pantalla principal.
+
+### Columnas de la plantilla
+
+| Columna | Formato | Ejemplo |
+|---------|---------|---------|
+| Nro Comprobante | Hasta 11 dígitos (se completa con ceros a la izquierda) | `00000192840` |
+| Tipo | 2 dígitos (default `07`) | `07` |
+| Fecha 1er Vto | DDMMAA | `040626` |
+| Importe 1er Vto ($) | Pesos argentinos (la app convierte a centavos) | `120553,57` |
+| Fecha 2do Vto | DDMMAA | `040626` |
+| Importe 2do Vto ($) | Pesos argentinos | `120553,57` |
+
+Por cada fila, la app **construye automáticamente** el código de barra de 50 dígitos:
+- **Código de ente** — desde la configuración (ej. `0135` para Hurlingham)
+- **Dígito verificador** — calculado con el algoritmo Formato 50
+- **Importes** — convertidos de pesos a centavos
+
+### Hoja "⚠️ Leer — Formato de campos"
+
+La plantilla incluye una segunda hoja con la especificación completa de cada campo: posición en el código de barra, cantidad de dígitos, validaciones, y qué es autocalculado. Revisala si querés entender el formato o solucionar errores de importación.
+
+### Ejemplo de uso
+
+1. Descargá la plantilla (`Descargar plantilla Excel`)
+2. Completá los datos de tus comprobantes (una fila por comprobante)
+3. Subí el Excel a la app junto con otros PDFs si hac falta
+4. La app genera el TXT de compensación integrando todo
+
+> **Los campos autocalculados no se incluyen en el Excel.** El código de barra completo y el dígito verificador se generan automáticamente al importar.
 
 ## 🎨 Personalización
 
@@ -140,13 +173,13 @@ compensation-app/
 
 Cada registro tiene **279 caracteres de ancho fijo** con 40 campos. El código de barra de 50 dígitos se parsea en:
 
-| Campo            | Posición | Descripción                          |
-|------------------|----------|--------------------------------------|
-| Ente             | 0–3      | Código de ente (4 dígitos)           |
-| Fecha 1er Vto    | 4–9      | DDMMAA — 1er vencimiento             |
-| Importe 1er Vto  | 10–19    | Importe 1er vencimiento (en céntimos) |
-| Fecha 2do Vto    | 20–25    | DDMMAA — 2do vencimiento             |
-| Importe 2do Vto  | 26–35    | Importe 2do vencimiento (en céntimos) |
-| Nro Comprobante  | 36–42    | Número de comprobante (Tipo 7)       |
-| Tipo Comprobante | 43–44    | "07" para consolidación              |
-| Dígito Verificador | 45–49  | Dígito verificador del código de barra |
+| Campo            | Posición | Dígitos | Descripción                          |
+|------------------|----------|---------|--------------------------------------|
+| Ente             | 0–3      | 4       | Código de ente (Hurlingham = `0135`) |
+| Fecha 1er Vto    | 4–9      | 6       | DDMMAA — 1er vencimiento             |
+| Importe 1er Vto  | 10–19    | 10      | Importe 1er vencimiento (en céntimos) |
+| Fecha 2do Vto    | 20–25    | 6       | DDMMAA — 2do vencimiento             |
+| Importe 2do Vto  | 26–35    | 10      | Importe 2do vencimiento (en céntimos) |
+| Nro Comprobante  | 36–46    | 11      | Número de comprobante (Tipo 7)       |
+| Tipo Comprobante | 47–48    | 2       | `"07"` para consolidación            |
+| Dígito Verificador | 49     | 1       | Dígito verificador (0–9)             |

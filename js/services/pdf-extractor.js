@@ -2,37 +2,38 @@
  * PDF barcode extractor service.
  *
  * Uses pdf.js (global `pdfjsLib`) to extract text from uploaded PDF files,
- * then matches a 50-digit barcode via regex.
+ * then finds all 50-digit barcodes via regex. Returns all unique barcodes
+ * found across all pages of the PDF.
  *
  * @module services/pdf-extractor
  */
 
-/** Regex matching a 50-digit sequence surrounded by word boundaries. */
-const BARCODE_REGEX = /\b\d{50}\b/;
+/** Regex matching all 50-digit sequences surrounded by word boundaries. */
+const BARCODE_REGEX = /\b\d{50}\b/g;
 
 /**
- * Extracts the first 50-digit barcode found in a PDF file's text layer.
+ * Extracts all unique 50-digit barcodes found in a PDF file's text layer.
  *
  * Loads the PDF via `pdfjsLib.getDocument()`, reads text from every page
- * using `page.getTextContent()`, and searches for a 50-digit barcode.
+ * using `page.getTextContent()`, and collects every 50-digit barcode.
+ * Duplicate barcodes within the same PDF are removed (e.g. when the same
+ * barcode appears on multiple pages).
  *
  * @param {File} pdfFile - The PDF file uploaded by the user.
- * @returns {Promise<string|null>} The first 50-digit barcode found, or
- *   {@code null} if no barcode is found or the PDF cannot be read.
+ * @returns {Promise<string[]>} Array of unique 50-digit barcodes found,
+ *   in order of first appearance. Empty array if none found.
  *
  * @throws {Error} If pdfjsLib is not available on the global scope, or if
  *   the PDF is corrupt and cannot be opened.
  *
  * @example
- *   const barcode = await extractBarcodeFromPDF(pdfFile);
- *   if (barcode) {
- *     console.log('Found:', barcode);
- *   }
+ *   const barcodes = await extractBarcodesFromPDF(pdfFile);
+ *   console.log(`Found ${barcodes.length} barcode(s)`);
  */
-export async function extractBarcodeFromPDF(pdfFile) {
+export async function extractBarcodesFromPDF(pdfFile) {
   if (typeof pdfjsLib === 'undefined') {
     throw new Error(
-      'pdfjsLib is not available. Ensure pdf.js is loaded before calling extractBarcodeFromPDF().',
+      'pdfjsLib is not available. Ensure pdf.js is loaded before calling extractBarcodesFromPDF().',
     );
   }
 
@@ -43,7 +44,7 @@ export async function extractBarcodeFromPDF(pdfFile) {
 
   // Validate file type — accept only PDFs.
   if (pdfFile.type !== 'application/pdf' && !pdfFile.name.endsWith('.pdf')) {
-    return null;
+    return [];
   }
 
   /** @type {ArrayBuffer} */
@@ -51,9 +52,9 @@ export async function extractBarcodeFromPDF(pdfFile) {
 
   try {
     arrayBuffer = await pdfFile.arrayBuffer();
-    } catch (/** @type {*} */ _err) {
+  } catch (/** @type {*} */ _err) {
     // File.readAsArrayBuffer failed — file may be truncated or unreadable.
-    return null;
+    return [];
   }
 
   /** @type {import('pdfjs-dist').PDFDocumentProxy} */
@@ -61,9 +62,9 @@ export async function extractBarcodeFromPDF(pdfFile) {
 
   try {
     pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    } catch (/** @type {*} */ _err) {
+  } catch (/** @type {*} */ _err) {
     // PDF document could not be parsed (corrupt, encrypted, or invalid format).
-    return null;
+    return [];
   }
 
   // Iterate through pages and accumulate text content.
@@ -80,21 +81,18 @@ export async function extractBarcodeFromPDF(pdfFile) {
         }
       }
     }
-    } catch (/** @type {*} */ _err) {
+  } catch (/** @type {*} */ _err) {
     // Text extraction failed on a page — return whatever was found so far.
-    return null;
+    return [];
   } finally {
     // Always clean up the PDF document to release memory.
     await pdf.destroy();
   }
 
   const fullText = combinedText.join(' ');
-  const match = fullText.match(BARCODE_REGEX);
+  const matches = [...fullText.matchAll(BARCODE_REGEX)];
+  const barcodes = matches.map((m) => m[0]);
 
-  if (match) {
-    return match[0];
-  }
-
-  // No 50-digit barcode found in the text layer.
-  return null;
+  // Deduplicate within file while preserving order of first appearance.
+  return [...new Set(barcodes)];
 }

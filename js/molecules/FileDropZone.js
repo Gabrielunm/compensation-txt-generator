@@ -52,7 +52,7 @@ function totalBytes(files) {
  */
 export function FileDropZone({
   onFilesSelected,
-  accept = '.pdf,.txt',
+  accept = '.pdf,.txt,.xlsx',
   multiple = true,
 }) {
   const container = document.createElement('div');
@@ -63,11 +63,11 @@ export function FileDropZone({
   // --- Visual state elements ---
 
   const prompt = document.createElement('p');
-  prompt.textContent = 'Arrastrá PDFs o TXT con códigos de barra';
+  prompt.textContent = 'Arrastrá PDFs, TXT o Excel con datos de compensación';
   container.append(prompt);
 
   const hint = document.createElement('small');
-  hint.textContent = `Solo archivos ${accept}`;
+  hint.textContent = `Formatos aceptados: ${accept}`;
   container.append(hint);
 
   // File count / size summary (visible in has-files state).
@@ -89,7 +89,7 @@ export function FileDropZone({
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
-  fileInput.accept = '.pdf,.txt';
+  fileInput.accept = '.pdf,.txt,.xlsx';
   fileInput.multiple = multiple;
   fileInput.hidden = true;
   container.append(fileInput);
@@ -112,7 +112,7 @@ export function FileDropZone({
       prompt.textContent = 'Soltá los archivos para agregarlos';
     } else if (state === 'has-files') {
       container.classList.add('drop-zone--has-files');
-      prompt.textContent = 'Arrastrá más PDFs o TXT para agregar';
+      prompt.textContent = 'Arrastrá más archivos para agregar';
       const size = formatSize(totalBytes(currentFiles));
       summary.textContent = `${currentFiles.length} archivo(s) — ${size} total`;
       summary.hidden = false;
@@ -120,7 +120,7 @@ export function FileDropZone({
       warning.hidden = currentFiles.length < MEMORY_WARN_THRESHOLD;
     } else {
       // empty
-      prompt.textContent = 'Arrastrá PDFs o TXT con códigos de barra';
+      prompt.textContent = 'Arrastrá PDFs, TXT o Excel con datos de compensación';
       summary.hidden = true;
       warning.hidden = true;
     }
@@ -134,7 +134,8 @@ export function FileDropZone({
   function addFiles(rawFiles) {
     const validFiles = rawFiles.filter(
       (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf') ||
-            f.type === 'text/plain' || f.name.toLowerCase().endsWith('.txt'),
+            f.type === 'text/plain' || f.name.toLowerCase().endsWith('.txt') ||
+            f.name.toLowerCase().endsWith('.xlsx'),
     );
     if (validFiles.length === 0) {
       return;

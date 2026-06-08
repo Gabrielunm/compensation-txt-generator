@@ -123,7 +123,8 @@ function generateExcelBytes(records, errors, fechaEmision) {
     summaryRows.push([]);
     summaryRows.push(['Archivo', 'Error']);
     errors.forEach((e) => {
-      summaryRows.push([e.fileName, `[${e.step}] ${e.error}`]);
+      const errMsg = e.barcode ? `[${e.step}] ${e.error} (código: ${e.barcode})` : `[${e.step}] ${e.error}`;
+      summaryRows.push([e.fileName, errMsg]);
     });
   }
 
@@ -289,7 +290,9 @@ export function CompensationReport({
 
       const errorMsgSpan = document.createElement('span');
       errorMsgSpan.className = 'comp-report__error-msg';
-      errorMsgSpan.textContent = `[${err.step}] ${err.error}`;
+      errorMsgSpan.textContent = err.barcode
+        ? `[${err.step}] ${err.error} — código: ${err.barcode}`
+        : `[${err.step}] ${err.error}`;
 
       li.append(fileNameSpan, errorMsgSpan);
       errorList.append(li);
